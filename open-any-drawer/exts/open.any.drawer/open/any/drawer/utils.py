@@ -2,7 +2,23 @@
 
 import omni
 from omni.physx.scripts import physicsUtils
-from pxr import UsdGeom, Usd, UsdShade, UsdPhysics
+from pxr import UsdGeom, Usd, UsdShade, UsdPhysics, Gf
+
+def add_ground_plane(prim_path = "/World/game", invisible = False):
+    stage = omni.usd.get_context().get_stage()
+    purposes = [UsdGeom.Tokens.default_]
+    bboxcache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), purposes)
+    prim = stage.GetPrimAtPath(prim_path)
+    bboxes = bboxcache.ComputeWorldBound(prim)
+    # print("bboxes", bboxes)
+    z = bboxes.ComputeAlignedRange().GetMin()[2]
+    physicsUtils.add_ground_plane(stage, "/groundPlane", "Z", 10.0, Gf.Vec3f(0.0, 0.0, z), Gf.Vec3f(0.2))
+    
+    if invisible:
+        prim_list = list(stage.TraverseAll())
+        prim_list = [ item for item in prim_list if 'groundPlane' in item.GetPath().pathString and item.GetTypeName() == 'Mesh' ]
+        for prim in prim_list:
+            prim.GetAttribute('visibility').Set('invisible')
 
 def get_bounding_box(prim_path: str):
     """
