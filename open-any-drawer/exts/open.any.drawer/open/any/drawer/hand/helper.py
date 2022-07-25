@@ -1,14 +1,6 @@
-import omni.ext
-import omni.ui as ui
-
-from .open_env import OpenEnv
-
-# go to directory: open-any-drawer/exts/open.any.drawer/open/any/drawer/
-#  # start notebook from: /home/yizhou/.local/share/ov/pkg/isaac_sim-2022.1.0/jupyter_notebook.sh
-
-
 # hand helper
 import carb
+import omni
 import sys
 from pxr import Usd, Sdf, PhysxSchema, UsdPhysics, Vt, Gf, UsdGeom, UsdShade
 from omni.physx.scripts import physicsUtils, particleUtils
@@ -16,50 +8,13 @@ from omni.physx.scripts import deformableUtils, utils
 import math
 from copy import copy
 
-from .hand.limiter import *
+from .limiter import *
 
-# Any class derived from `omni.ext.IExt` in top level module (defined in `python.modules` of `extension.toml`) will be
-# instantiated when extension gets enabled and `on_startup(ext_id)` will be called. Later when extension gets disabled
-# on_shutdown() is called.
-class MyExtension(omni.ext.IExt):
-    # ext_id is current extension id. It can be used with extension manager to query additional information, like where
-    # this extension is located on filesystem.
-    def on_startup(self, ext_id):
-        print("[open.any.drawer] MyExtension startup")
 
-        self.env = OpenEnv()
-
-        self._window = ui.Window("Open any drawer", width=300, height=300)
-        with self._window.frame:
-            with ui.VStack():
-                ui.Button("Add Franka Robot", clicked_fn= self.env.add_robot)
-
-                with ui.HStack(height = 20):
-                    ui.Label("object index: ", width = 80)
-                    self.object_id_ui = omni.ui.IntField(height=20, width = 40, style={ "margin": 2 })
-                    self.object_id_ui.model.set_value(0)
-                    ui.Button("Add Object", clicked_fn=self.add_object)
-
-                ui.Button("Add Ground", clicked_fn=self.add_ground)
-
-                ui.Button("Debug", clicked_fn= self.debug)
-                ui.Button("Debug2", clicked_fn= self.debug2)
-
-    def add_ground(self):
-        from utils import add_ground_plane
-
-        add_ground_plane("/World/Game")
-
-    def add_object(self):
-        object_id = self.object_id_ui.model.get_value_as_int()
-        self.env.add_object(object_id)
-
-    def on_shutdown(self):
-        print("[open.any.drawer] MyExtension shutdown")
-
-    def debug(self):
-        print("debug")
-
+class HandHelper():
+    def __init__(self) -> None:
+        self.stage  = omni.usd.get_context().get_stage()
+        
         #########################################################
         ################### constants ###########################
         #########################################################
@@ -98,24 +53,41 @@ class MyExtension(omni.ext.IExt):
         ################### hand ###########################
         #########################################################
 
-        # import skeleton hand
-        stage = omni.usd.get_context().get_stage()
-        self._stage = stage
+        self.import_hand()
+        self._setup_geometry()
+        self._setup_mesh_tree()
+        # print("_fingerMeshes", self._fingerMeshes)
+        self._rig_hand()
 
-        default_prim_path = stage.GetDefaultPrim().GetPath()
+    def import_hand(self):
+        # import skeleton hand
+        
+
+        default_prim_path = Sdf.Path("/World") # stage.GetDefaultPrim().GetPath()
+        self._hand_prim_path = default_prim_path.AppendPath("Hand")
         self._bones_root_path = default_prim_path.AppendPath("Hand/Bones")
         self._tips_root_path = default_prim_path.AppendPath("Hand/Tips")
 
         abspath = "https://omniverse-content-staging.s3.us-west-2.amazonaws.com/DoNotDelete/PhysicsDemoAssets/103.1/DeformableHand/skeleton_hand_with_tips.usd"
-        assert stage.DefinePrim(default_prim_path.AppendPath("Hand")).GetReferences().AddReference(abspath)
+        assert self.stage.DefinePrim(self._hand_prim_path).GetReferences().AddReference(abspath)
 
-        ## set up geo
-        self._setup_geometry()
-        self._setup_mesh_tree()
-        self._rig_hand()
-        self._rig_D6_anchor()
-        self._setup_skeleton_hand_db_tips(stage)
+        self._hand_prim = self.stage.GetPrimAtPath(self._hand_prim_path.pathString)
+        hand_xform = UsdGeom.Xformable(self._hand_prim)
+        hand_xform.ClearXformOpOrder()
+        precision = UsdGeom.XformOp.PrecisionFloat
+        hand_xform.AddTranslateOp(precision=precision).Set(Gf.Vec3f(0,1.0,0.5))
+        hand_xform.AddOrientOp(precision=precision).Set(Gf.Quatf(1,0,0,0))
+        hand_xform.AddScaleOp(precision=precision).Set(Gf.Vec3f(0.01))
 
+         # Physics scene
+        physicsScenePath = default_prim_path.AppendChild("physicsScene")
+        scene = UsdPhysics.Scene.Define(self.stage, physicsScenePath)
+        scene.CreateGravityDirectionAttr().Set(Gf.Vec3f(0.0, 0.0, -1.0))
+        scene.CreateGravityMagnitudeAttr().Set(9.81)
+        # utils.set_physics_scene_asyncsimrender(scene.GetPrim())
+        # physxAPI = PhysxSchema.PhysxSceneAPI.Apply(scene.GetPrim())
+        # physxAPI.CreateSolverTypeAttr("TGS")
+        # physxAPI.CreateGpuMaxNumPartitionsAttr(4)
 
     def _setup_geometry(self):
         boneNames = ["proximal", "middle", "distal"]
@@ -144,7 +116,7 @@ class MyExtension(omni.ext.IExt):
         # and will be converted to the bone frame in the joint rigging
         angleY = -0.45
         angleZ = -0.5
-        quat = self.get_quat_from_extrinsic_xyz_rotation(angleYrad=angleY, angleZrad=angleZ)
+        quat = get_quat_from_extrinsic_xyz_rotation(angleYrad=angleY, angleZrad=angleZ)
         metacarpal.quat = quat  # first y then z, extrinsic
         metacarpal.type = "spherical"
         metacarpal.axis = "X"
@@ -179,7 +151,7 @@ class MyExtension(omni.ext.IExt):
         middle = JointGeometry()
         middle.bbCenterWeight = 0.67
         xAngleRad = 5.0 * math.pi / 180.0
-        middle.quat = self.get_quat_from_extrinsic_xyz_rotation(angleXrad=xAngleRad)
+        middle.quat = get_quat_from_extrinsic_xyz_rotation(angleXrad=xAngleRad)
         middle.axis = "Z"
         middle.limits = revoluteLimits
 
@@ -222,7 +194,7 @@ class MyExtension(omni.ext.IExt):
         middle.quat = Gf.Quatf(1.0)
         middle.limits = revoluteLimits
         xAngleRad = -5.0 * math.pi / 180.0
-        middle.quat = self.get_quat_from_extrinsic_xyz_rotation(angleXrad=xAngleRad)
+        middle.quat = get_quat_from_extrinsic_xyz_rotation(angleXrad=xAngleRad)
         middle.axis = "Z"
 
         distal = copy(middle)
@@ -235,7 +207,7 @@ class MyExtension(omni.ext.IExt):
         proximal = JointGeometry()
         proximal.bbCenterWeight = 0.67
         yAngleRad = 8.0 * math.pi / 180.0
-        proximal.quat = self.get_quat_from_extrinsic_xyz_rotation(angleXrad=xAngleRad, angleYrad=yAngleRad)
+        proximal.quat = get_quat_from_extrinsic_xyz_rotation(angleXrad=xAngleRad, angleYrad=yAngleRad)
         proximal.type = "spherical"
         proximal.limits = sphericalLimits
         proximal.axis = "X"
@@ -248,7 +220,7 @@ class MyExtension(omni.ext.IExt):
         middle.axis = "Z"
         yAngleRad = 8.0 * math.pi / 180.0
         xAngleRad = -5.0 * math.pi / 180.0
-        middle.quat = self.get_quat_from_extrinsic_xyz_rotation(angleXrad=xAngleRad, angleYrad=yAngleRad)
+        middle.quat = get_quat_from_extrinsic_xyz_rotation(angleXrad=xAngleRad, angleYrad=yAngleRad)
 
         distal = copy(middle)
         distal.bbCenterWeight = 0.55
@@ -257,7 +229,7 @@ class MyExtension(omni.ext.IExt):
         self._jointGeometry["Pinky"] = dict(zip(boneNames, geoms))
 
     def _setup_mesh_tree(self):
-        self._baseMesh = UsdGeom.Mesh.Get(self._stage, self._bones_root_path.AppendChild("l_carpal_mid"))
+        self._baseMesh = UsdGeom.Mesh.Get(self.stage, self._bones_root_path.AppendChild("l_carpal_mid"))
         assert self._baseMesh
         boneNames = ["metacarpal", "proximal", "middle", "distal"]
         fingerNames = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
@@ -269,7 +241,7 @@ class MyExtension(omni.ext.IExt):
                 if fingerName == "Thumb" and boneName == "middle":
                     continue
                 bonePath = groupPath.AppendChild(f"l_{boneName}{fingerName}_mid")
-                boneMesh = UsdGeom.Mesh.Get(self._stage, bonePath)
+                boneMesh = UsdGeom.Mesh.Get(self.stage, bonePath)
                 assert boneMesh, f"Mesh {bonePath.pathString} invalid"
                 self._fingerMeshes[fingerName][boneName] = boneMesh
 
@@ -287,7 +259,7 @@ class MyExtension(omni.ext.IExt):
 
     def _rig_hand_base(self):
         basePath = self._baseMesh.GetPath()
-        parentWorldBB = self._computeMeshWorldBoundsFromPoints(self._baseMesh)
+        parentWorldBB = computeMeshWorldBoundsFromPoints(self._baseMesh)
         self._base_mesh_world_pos = Gf.Vec3f(0.5 * (parentWorldBB[0] + parentWorldBB[1]))
         baseLocalToWorld = self._baseMesh.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
 
@@ -298,11 +270,11 @@ class MyExtension(omni.ext.IExt):
             for boneName, bone in finger.items():
                 if boneName == "metacarpal":
                     fixedJointPath = bone.GetPath().AppendChild("baseFixedJoint")
-                    fixedJoint = UsdPhysics.FixedJoint.Define(self._stage, fixedJointPath)
+                    fixedJoint = UsdPhysics.FixedJoint.Define(self.stage, fixedJointPath)
                     fixedJoint.CreateBody0Rel().SetTargets([basePath])
                     fixedJoint.CreateBody1Rel().SetTargets([bone.GetPath()])
 
-                    childWorldBB = self._computeMeshWorldBoundsFromPoints(bone)
+                    childWorldBB = computeMeshWorldBoundsFromPoints(bone)
                     childWorldPos = Gf.Vec3f(0.5 * (childWorldBB[0] + childWorldBB[1]))
                     childLocalToWorld = bone.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
 
@@ -327,26 +299,32 @@ class MyExtension(omni.ext.IExt):
         jointGeom = self._jointGeometry[fingerName][boneName]
         jointType = jointGeom.type.lower()
 
-        parentWorldBB = self._computeMeshWorldBoundsFromPoints(parentBone)
+        print("jointType", parentBone, jointType, childBone, jointType)
+
+        parentWorldBB = computeMeshWorldBoundsFromPoints(parentBone)
         parentWorldPos = Gf.Vec3d(0.5 * (parentWorldBB[0] + parentWorldBB[1]))
         parentLocalToWorld = parentBone.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
 
-        childWorldBB = self._computeMeshWorldBoundsFromPoints(childBone)
+        childWorldBB = computeMeshWorldBoundsFromPoints(childBone)
         childWorldPos = Gf.Vec3d(0.5 * (childWorldBB[0] + childWorldBB[1]))
         childLocalToWorld = childBone.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
 
         jointWorldPos = parentWorldPos + jointGeom.bbCenterWeight * (childWorldPos - parentWorldPos)
+        
+        print("jointWorldPos", jointWorldPos, parentWorldPos)
+        
         if jointGeom.posOffsetW is not None:
-            jointWorldPos += jointGeom.posOffsetW
+            jointWorldPos += (jointGeom.posOffsetW / 100)
+            # print("jointGeom.posOffsetW", jointGeom.posOffsetW)
         jointParentPosition = parentLocalToWorld.GetInverse().Transform(jointWorldPos)
         jointChildPosition = childLocalToWorld.GetInverse().Transform(jointWorldPos)
 
         if jointType == "revolute":
             jointPath = childBone.GetPath().AppendChild("RevoluteJoint")
-            joint = UsdPhysics.RevoluteJoint.Define(self._stage, jointPath)
+            joint = UsdPhysics.RevoluteJoint.Define(self.stage, jointPath)
         elif jointType == "spherical":
             jointPath = childBone.GetPath().AppendChild("SphericalJoint")
-            joint = UsdPhysics.SphericalJoint.Define(self._stage, jointPath)
+            joint = UsdPhysics.SphericalJoint.Define(self.stage, jointPath)
 
         joint.CreateBody0Rel().SetTargets([parentBone.GetPath()])
         joint.CreateBody1Rel().SetTargets([childBone.GetPath()])
@@ -387,13 +365,16 @@ class MyExtension(omni.ext.IExt):
         elif jointType == "spherical":
             # add 6d external joint and drive:
             d6path = childBone.GetPath().AppendChild("D6DriverJoint")
-            d6j = UsdPhysics.Joint.Define(self._stage, d6path)
+            d6j = UsdPhysics.Joint.Define(self.stage, d6path)
             d6j.CreateExcludeFromArticulationAttr().Set(True)
             d6j.CreateBody0Rel().SetTargets([parentBone.GetPath()])
             d6j.CreateBody1Rel().SetTargets([childBone.GetPath()])
             d6j.CreateExcludeFromArticulationAttr().Set(True)
             d6j.CreateLocalPos0Attr().Set(jointParentPosition)
             parentWorldToLocal = Gf.Quatf(parentLocalToWorld.GetInverse().RemoveScaleShear().ExtractRotationQuat())
+            
+            print("D6DriverJoint parentWorldToLocal", jointParentPosition, jointChildPosition)
+            
             d6j.CreateLocalRot0Attr().Set(parentWorldToLocal)
             d6j.CreateLocalPos1Attr().Set(jointChildPosition)
             childPose = parentWorldToLocal * jointGeom.quat
@@ -428,15 +409,18 @@ class MyExtension(omni.ext.IExt):
 
     def _rig_fingers(self):
         for fingerName, finger in self._fingerMeshes.items():
+            print("fingerName", fingerName)
             parentBone = self._baseMesh
             for boneName, bone in finger.items():
                 self._rig_joint(boneName, fingerName, parentBone)
                 parentBone = bone
 
+            return 
+
     def _rig_D6_anchor(self):
         # create anchor:
         self._anchorXform = UsdGeom.Xform.Define(
-            self._stage, self._stage.GetDefaultPrim().GetPath().AppendChild("AnchorXform")
+            self.stage, self.stage.GetDefaultPrim().GetPath().AppendChild("AnchorXform")
         )
         # these are global coords because world is the xform's parent
         xformLocalToWorldTrans = self._handInitPos
@@ -456,7 +440,7 @@ class MyExtension(omni.ext.IExt):
 
         # setup joint to floating hand base
         component = UsdPhysics.Joint.Define(
-            self._stage, self._stage.GetDefaultPrim().GetPath().AppendChild("AnchorToHandBaseD6")
+            self.stage, self.stage.GetDefaultPrim().GetPath().AppendChild("AnchorToHandBaseD6")
         )
 
         baseLocalToWorld = self._baseMesh.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
@@ -491,180 +475,24 @@ class MyExtension(omni.ext.IExt):
             driveAPI.CreateTargetPositionAttr(0.0)
             driveAPI.CreateDampingAttr(self._d6RotationalDamping)
             driveAPI.CreateStiffnessAttr(self._d6RotationalSpring)
-
-    ########################### soft body #################################################
-
-    def _setup_skeleton_hand_db_tips(self, stage):
-
-        # SB and fluid:
-        self._sb_hand_schema_parameters = {
-            "youngsModulus": 1.0e5,
-            "poissonsRatio": 0.3,
-            "dampingScale": 1.0,
-            "dynamicFriction": 1.0,
-            "solver_position_iteration_count": 15,
-            "collisionRestOffset": 0.1,
-            "collisionContactOffset": 0.5,
-            "self_collision": False,
-            "vertex_velocity_damping": 0.005,
-            "sleep_damping": 0.001,  # disable
-            "sleep_threshold": 0.001,  # disable
-            "settling_threshold": 0.001,  # disable
-        }
-        self._sb_tips_schema_parameters = self._sb_hand_schema_parameters
-        self._sb_tips_schema_parameters["collisionRestOffset"] = 0.00001
-
-        self._sb_tips_resolution = 8
-        self._sb_hand_resolution = 20
-
-        # create and attach softbodies
-        sbTipsStringPaths = [
-            "LeftHandThumbTipScaled/geom",
-            "LeftHandIndexTipScaled/geom",
-            "LeftHandMiddleTipScaled/geom",
-            "LeftHandRingTipScaled/geom",
-            "LeftHandPinkyTipScaled/geom",
-        ]
-        sbTipsPaths = [self._tips_root_path.AppendPath(x) for x in sbTipsStringPaths]
-
-        sbTips_material_path = omni.usd.get_stage_next_free_path(stage, "/sbTipsMaterial", True)
-        deformableUtils.add_deformable_body_material(
-            stage,
-            sbTips_material_path,
-            youngs_modulus=self._sb_tips_schema_parameters["youngsModulus"],
-            poissons_ratio=self._sb_tips_schema_parameters["poissonsRatio"],
-            damping_scale=self._sb_tips_schema_parameters["dampingScale"],
-            dynamic_friction=self._sb_tips_schema_parameters["dynamicFriction"],
-        )
-
-        self._deformableTipMass = 0.01
-        for sbTipPath in sbTipsPaths:
-            self.set_softbody(
-                sbTipPath,
-                self._sb_tips_schema_parameters,
-                sbTips_material_path,
-                self._deformableTipMass,
-                self._sb_tips_resolution,
-            )
-
-        # rigid attach
-        attachmentBoneStringPaths = [
-            "l_thumbSkeleton_grp/l_distalThumb_mid",
-            "l_indexSkeleton_grp/l_distalIndex_mid",
-            "l_middleSkeleton_grp/l_distalMiddle_mid",
-            "l_ringSkeleton_grp/l_distalRing_mid",
-            "l_pinkySkeleton_grp/l_distalPinky_mid",
-            "l_thumbSkeleton_grp/l_metacarpalThumb_mid",
-            "l_indexSkeleton_grp/l_metacarpalIndex_mid",
-            "l_middleSkeleton_grp/l_metacarpalMiddle_mid",
-            "l_ringSkeleton_grp/l_metacarpalRing_mid",
-            "l_pinkySkeleton_grp/l_metacarpalPinky_mid",
-            "l_thumbSkeleton_grp/l_proximalThumb_mid",
-            "l_indexSkeleton_grp/l_proximalIndex_mid",
-            "l_middleSkeleton_grp/l_proximalMiddle_mid",
-            "l_ringSkeleton_grp/l_proximalRing_mid",
-            "l_pinkySkeleton_grp/l_proximalPinky_mid",
-            "l_indexSkeleton_grp/l_middleIndex_mid",
-            "l_middleSkeleton_grp/l_middleMiddle_mid",
-            "l_ringSkeleton_grp/l_middleRing_mid",
-            "l_pinkySkeleton_grp/l_middlePinky_mid",
-            "l_carpal_mid",
-        ]
-
-        # color of tips:
-        color_rgb = [161, 102, 94]
-        sbColor = Vt.Vec3fArray([Gf.Vec3f(color_rgb[0], color_rgb[1], color_rgb[2]) / 256.0])
-        attachmentBonePaths = [self._bones_root_path.AppendPath(x) for x in attachmentBoneStringPaths]
-        for sbTipPath, bonePath in zip(sbTipsPaths, attachmentBonePaths):
-            sbMesh = UsdGeom.Mesh.Get(stage, sbTipPath)
-            sbMesh.CreateDisplayColorAttr(sbColor)
-            boneMesh = UsdGeom.Mesh.Get(stage, bonePath)
-            self.create_softbody_rigid_attachment(sbMesh, boneMesh, 0)
-
-        softbodyGroupPath = "/World/physicsScene/collisionGroupSoftBodyTips"
-        boneGroupPath = "/World/physicsScene/collisionGroupHandBones"
-        softbodyGroup = UsdPhysics.CollisionGroup.Define(stage, softbodyGroupPath)
-        boneGroup = UsdPhysics.CollisionGroup.Define(stage, boneGroupPath)
-
-        filteredRel = softbodyGroup.CreateFilteredGroupsRel()
-        filteredRel.AddTarget(boneGroupPath)
-
-        filteredRel = boneGroup.CreateFilteredGroupsRel()
-        filteredRel.AddTarget(softbodyGroupPath)
-
-        for sbTipPath in sbTipsPaths:
-            self.assign_collision_group(sbTipPath, softbodyGroupPath)
-        # filter all SB tips vs bone rigid bodies collisions
-        self.assign_collision_group(self._baseMesh.GetPath(), boneGroupPath)
-        for finger in self._fingerMeshes.values():
-            for bone in finger.values():
-                self.assign_collision_group(bone.GetPath(), boneGroupPath)
-
-    def assign_collision_group(self, primPath: Sdf.Path, groupPath: Sdf.Path):
-        stage = self._stage
-        physicsUtils.add_collision_to_collision_group(stage, primPath, groupPath)
-
-    def set_softbody(
-        self, mesh_path: Sdf.Path, schema_parameters: dict, material_path: Sdf.Path, mass: float, resolution: int
-    ):
-
-        success = omni.kit.commands.execute(
-            "AddDeformableBodyComponentCommand",
-            skin_mesh_path=mesh_path,
-            voxel_resolution=resolution,
-            solver_position_iteration_count=schema_parameters["solver_position_iteration_count"],
-            self_collision=schema_parameters["self_collision"],
-            vertex_velocity_damping=schema_parameters["vertex_velocity_damping"],
-            sleep_damping=schema_parameters["sleep_damping"],
-            sleep_threshold=schema_parameters["sleep_threshold"],
-            settling_threshold=schema_parameters["settling_threshold"],
-        )
-
-        prim = self._stage.GetPrimAtPath(mesh_path)
-        physxCollisionAPI = PhysxSchema.PhysxCollisionAPI.Apply(prim)
-        assert physxCollisionAPI.CreateRestOffsetAttr().Set(schema_parameters["collisionRestOffset"])
-        assert physxCollisionAPI.CreateContactOffsetAttr().Set(schema_parameters["collisionContactOffset"])
-
-        massAPI = UsdPhysics.MassAPI.Apply(prim)
-        massAPI.CreateMassAttr().Set(mass)
-
-        physicsUtils.add_physics_material_to_prim(self._stage, self._stage.GetPrimAtPath(mesh_path), material_path)
-
-        assert success
-
-    def create_softbody_rigid_attachment(self, soft_body, gprim, id):
-        assert PhysxSchema.PhysxDeformableBodyAPI(soft_body)
-        assert UsdPhysics.CollisionAPI(gprim)
-
-        # get attachment to set parameters:
-        attachmentPath = soft_body.GetPath().AppendChild(f"rigid_attachment_{id}")
-
-        attachment = PhysxSchema.PhysxPhysicsAttachment.Define(self._stage, attachmentPath)
-        attachment.GetActor0Rel().SetTargets([soft_body.GetPath()])
-        attachment.GetActor1Rel().SetTargets([gprim.GetPath()])
-        PhysxSchema.PhysxAutoAttachmentAPI.Apply(attachment.GetPrim())
-
-        attachment = PhysxSchema.PhysxAutoAttachmentAPI.Get(self._stage, attachmentPath)
-        attachment.GetEnableDeformableVertexAttachmentsAttr().Set(True)
-        attachment.GetEnableRigidSurfaceAttachmentsAttr().Set(True)
-
-    ########################################## physics ###################################
+    
+     ########################################## physics ###################################
 
     def _setup_physics_material(self, path: Sdf.Path):
         if self._physicsMaterialPath is None:
-            self._physicsMaterialPath = self._stage.GetDefaultPrim().GetPath().AppendChild("physicsMaterial")
-            UsdShade.Material.Define(self._stage, self._physicsMaterialPath)
-            material = UsdPhysics.MaterialAPI.Apply(self._stage.GetPrimAtPath(self._physicsMaterialPath))
+            self._physicsMaterialPath = self.stage.GetDefaultPrim().GetPath().AppendChild("physicsMaterial")
+            UsdShade.Material.Define(self.stage, self._physicsMaterialPath)
+            material = UsdPhysics.MaterialAPI.Apply(self.stage.GetPrimAtPath(self._physicsMaterialPath))
             material.CreateStaticFrictionAttr().Set(self._material_static_friction)
             material.CreateDynamicFrictionAttr().Set(self._material_dynamic_friction)
             material.CreateRestitutionAttr().Set(self._material_restitution)
 
-        collisionAPI = UsdPhysics.CollisionAPI.Get(self._stage, path)
-        prim = self._stage.GetPrimAtPath(path)
+        collisionAPI = UsdPhysics.CollisionAPI.Get(self.stage, path)
+        prim = self.stage.GetPrimAtPath(path)
         if not collisionAPI:
             collisionAPI = UsdPhysics.CollisionAPI.Apply(prim)
         # apply material
-        physicsUtils.add_physics_material_to_prim(self._stage, prim, self._physicsMaterialPath)
+        physicsUtils.add_physics_material_to_prim(self.stage, prim, self._physicsMaterialPath)
 
     def _apply_mass(self, mesh: UsdGeom.Mesh, mass: float):
         massAPI = UsdPhysics.MassAPI.Apply(mesh.GetPrim())
@@ -683,37 +511,12 @@ class MyExtension(omni.ext.IExt):
     def _set_bone_mesh_to_rigid_body_and_config(self, mesh: UsdGeom.Mesh, approximationShape="convexHull"):
         prim = mesh.GetPrim()
         utils.setRigidBody(prim, approximationShape=approximationShape, kinematic=False)
-        self._setup_rb_parameters(prim, restOffset=0.0, contactOffset=0.1)
+        self._setup_rb_parameters(prim, restOffset=0.0, contactOffset=0.01) #! change contact offset
 
     def _set_bones_to_rb(self):
         self._set_bone_mesh_to_rigid_body_and_config(self._baseMesh)
-        self._apply_mass(self._baseMesh, 0.1)
+        self._apply_mass(self._baseMesh, 0.01) #! change mass
         for _, finger in self._fingerMeshes.items():
             for _, bone in finger.items():
                 self._set_bone_mesh_to_rigid_body_and_config(bone)
-                self._apply_mass(bone, 0.1)
-
-    ########################################## utils #####################################
-    @staticmethod
-    def get_quat_from_extrinsic_xyz_rotation(angleXrad: float = 0.0, angleYrad: float = 0.0, angleZrad: float = 0.0):
-        # angles are in radians
-        rotX = rotate_around_axis(1, 0, 0, angleXrad)
-        rotY = rotate_around_axis(0, 1, 0, angleYrad)
-        rotZ = rotate_around_axis(0, 0, 1, angleZrad)
-        return rotZ * rotY * rotX
-
-    
-    @staticmethod
-    def _computeMeshWorldBoundsFromPoints(mesh: UsdGeom.Mesh) -> Vt.Vec3fArray:
-        mesh_pts = mesh.GetPointsAttr().Get()
-        extent = UsdGeom.PointBased.ComputeExtent(mesh_pts)
-        transform = mesh.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
-        for i in range(len(extent)):
-            extent[i] = transform.Transform(extent[i])
-        return extent
-
-    
-    def debug2(self):
-        print("debug2")
-        from .hand.helper import HandHelper
-        self.hand_helper = HandHelper()
+                self._apply_mass(bone, 0.01) #! change mass
