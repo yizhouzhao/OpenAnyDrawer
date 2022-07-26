@@ -72,8 +72,8 @@ class MyExtension(omni.ext.IExt):
         # Joint drives / params:
         radToDeg = 180.0 / math.pi
         self._drive_max_force = 1e20
-        self._revolute_drive_stiffness = 0 # 10000000 / radToDeg  # 50000.0
-        self._spherical_drive_stiffness = 0 # 22000000 / radToDeg  # 50000.0
+        self._revolute_drive_stiffness =  10000000 / radToDeg  # 50000.0
+        self._spherical_drive_stiffness =  22000000 / radToDeg  # 50000.0
         self._revolute_drive_damping = 0.2 * self._revolute_drive_stiffness
         self._spherical_drive_damping = 0.2 * self._spherical_drive_stiffness
         self._maxJointVelocity = 3.0 * radToDeg
@@ -122,8 +122,8 @@ class MyExtension(omni.ext.IExt):
         self._jointGeometry = {}
         # self._tableRestOffset = 0.005
         # self._tableHeightOffset = Gf.Vec3f(0.0, -2.3 + self._tableRestOffset, 0.0)
-        self._handPosOffset = Gf.Vec3f(0.0, 64.0, 0.0)
-        self._handInitPos = Gf.Vec3f(0.0, 94.0, 0.0)
+        # self._handPosOffset = Gf.Vec3f(0.0, 64.0, 0.0)
+        self._handInitPos = Gf.Vec3f(0.0, 1.0, 0.5)
         # self._flamePosition = Gf.Vec3d(27.992, 100.97, -13.96)
         # self._mugInitPos = Gf.Vec3f(10, 74.17879 + self._mugRestOffset, 0)
         # self._candlePosition = Gf.Vec3f(28, 74, -14)

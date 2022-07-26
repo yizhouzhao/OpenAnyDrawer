@@ -1,0 +1,115 @@
+import os
+import sys
+sys.path.append(os.path.dirname(__file__))
+
+import numpy as np
+
+from hand.helper import HandHelper
+from numpy_utils import *
+
+from omni.isaac.core import World, SimulationContext
+from omni.isaac.core.prims.xform_prim_view import XFormPrimView
+from omni.isaac.core.robots.robot_view import RobotView
+
+class HandEnv():
+    def __init__(self,
+        prim_paths_expr="",
+        xform_paths_expr="",
+        backend = "numpy",
+        device = None
+        ) -> None:
+        
+        # init hand helper
+        # self.hander_helper = HandHelper()
+
+        self.xform_paths_expr = xform_paths_expr
+        self.prim_paths_expr = prim_paths_expr
+        self.backend = backend
+        self.device = device
+
+    def start(self): 
+        # simulation context
+        self.simlation_context = SimulationContext(backend=self.backend, device=self.device)
+        print("simlation context", SimulationContext.instance().backend, SimulationContext.instance().device)
+
+        # articulation
+        self.robots =  RobotView(self.prim_paths_expr) # sim.create_articulation_view("/World/envs/*/humanoid/torso") # 
+        self.robot_indices = self.robots._backend_utils.convert(np.arange(self.robots.count, dtype=np.int32), self.device)
+        self.num_envs = len(self.robot_indices)
+
+        print("num_envs", self.num_envs)
+
+        # initialize
+        self.robots.initialize()
+        self.robot_states = self.robots.get_world_poses()
+        self.dof_pos = self.robots.get_joint_positions()
+
+        self.initial_dof_pos = self.dof_pos
+        self.dof_vel = self.robots.get_joint_velocities()
+        self.initial_dof_vel = self.dof_vel
+
+        self.xforms = XFormPrimView(self.xform_paths_expr)
+
+    def move_to_target(self, goal_pos, goal_rot, finger = "thumb"):
+        """
+        Move hand to target points
+        """
+        # get end effector transforms
+        finger_pos, finger_rot = self.xforms.get_world_poses()
+        finger_rot = finger_rot[:,[1,2,3,0]] # WXYZ
+
+        # get franka DOF states
+        dof_pos = self.robots.get_joint_positions()
+
+        # compute position and orientation error
+        pos_err = goal_pos - finger_pos
+        orn_err = orientation_error(goal_rot, finger_rot)
+        dpose = np.concatenate([pos_err, orn_err], -1)[:, None].transpose(0, 2, 1)
+
+        jacobians = self.robots._physics_view.get_jacobians()
+
+        # jacobian entries corresponding to franka hand
+        franka_hand_index = 14  # !!!
+        j_eef = jacobians[:, franka_hand_index - 1, :]
+
+        # solve damped least squares
+        j_eef_T = np.transpose(j_eef, (0, 2, 1))
+        d = 0.05  # damping term
+        lmbda = np.eye(6) * (d ** 2)
+        u = (j_eef_T @ np.linalg.inv(j_eef @ j_eef_T + lmbda) @ dpose).reshape(self.num_envs, -1)
+
+        # update position targets
+        pos_targets = dof_pos + u  # * 0.3
+
+        return pos_targets
+
+    ##################################################################################################
+    # -------------------------------------- Control ------------------------------------------------#
+    ##################################################################################################
+
+    def move_finger_to_fast(self, target_pos, target_rot, world, finger = "thumb", max_step = 100):
+        """
+        Quickly move the robot hands to the target position and rotation
+        """
+        for i in range(max_step):
+            world.step(render=True)
+    
+            # get end effector transforms
+            finger_pos, finger_rot = self.xforms.get_world_poses()
+            finger_rot = finger_rot[:,[1,2,3,0]] # WXYZ -> XYZW
+
+            print("finger_pos", finger_pos)
+            
+            orient_error = quat_mul(target_rot[0], quat_conjugate(finger_rot[0]))
+            # print("orient_error", orient_error)
+            # if abs(orient_error[3] - 1) < 0.02 and \
+            #     np.sqrt(orient_error[0]**2 + orient_error[1]**2 + orient_error[2]**2) < 0.02 and \
+            #     np.sqrt(np.sum((target_pos[0] - finger_pos[0])**2)) < 0.01:
+            #     print("Done rotation, position", finger_pos, finger_rot)
+            #     return 
+
+            u = self.move_to_target(target_pos, target_rot)
+            # u[:,[-2, -1]] = 0.05 if open_gripper else 0
+            self.robots.set_joint_position_targets(u)
+        
+        print("Not Done rotation, position", finger_pos, finger_rot)

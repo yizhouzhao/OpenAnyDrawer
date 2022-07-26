@@ -27,8 +27,8 @@ class HandHelper():
         # Joint drives / params:
         radToDeg = 180.0 / math.pi
         self._drive_max_force = 1e20
-        self._revolute_drive_stiffness = 0 # 10000000 / radToDeg  # 50000.0
-        self._spherical_drive_stiffness = 0 # 22000000 / radToDeg  # 50000.0
+        self._revolute_drive_stiffness = 10000000 / radToDeg  # 50000.0
+        self._spherical_drive_stiffness = 22000000 / radToDeg  # 50000.0
         self._revolute_drive_damping = 0.2 * self._revolute_drive_stiffness
         self._spherical_drive_damping = 0.2 * self._spherical_drive_stiffness
         self._maxJointVelocity = 3.0 * radToDeg
@@ -52,12 +52,14 @@ class HandHelper():
         #########################################################
         ################### hand ###########################
         #########################################################
+        self._handInitPos = Gf.Vec3f(0.0)
 
         self.import_hand()
         self._setup_geometry()
         self._setup_mesh_tree()
-        # print("_fingerMeshes", self._fingerMeshes)
         self._rig_hand()
+        # self._rig_D6_anchor()
+        # self._setup_skeleton_hand_db_tips(self.stage)
 
     def import_hand(self):
         # import skeleton hand
@@ -68,6 +70,7 @@ class HandHelper():
         self._bones_root_path = default_prim_path.AppendPath("Hand/Bones")
         self._tips_root_path = default_prim_path.AppendPath("Hand/Tips")
 
+
         abspath = "https://omniverse-content-staging.s3.us-west-2.amazonaws.com/DoNotDelete/PhysicsDemoAssets/103.1/DeformableHand/skeleton_hand_with_tips.usd"
         assert self.stage.DefinePrim(self._hand_prim_path).GetReferences().AddReference(abspath)
 
@@ -75,9 +78,13 @@ class HandHelper():
         hand_xform = UsdGeom.Xformable(self._hand_prim)
         hand_xform.ClearXformOpOrder()
         precision = UsdGeom.XformOp.PrecisionFloat
-        hand_xform.AddTranslateOp(precision=precision).Set(Gf.Vec3f(0,1.0,0.5))
+        hand_xform.AddTranslateOp(precision=precision).Set(self._handInitPos)
         hand_xform.AddOrientOp(precision=precision).Set(Gf.Quatf(1,0,0,0))
-        hand_xform.AddScaleOp(precision=precision).Set(Gf.Vec3f(0.01))
+        hand_xform.AddScaleOp(precision=precision).Set(Gf.Vec3f(1))
+
+        # ! disable tips
+        tips_prim  = self.stage.GetPrimAtPath(self._tips_root_path.pathString)
+        tips_prim.SetActive(False)
 
          # Physics scene
         physicsScenePath = default_prim_path.AppendChild("physicsScene")
@@ -92,19 +99,6 @@ class HandHelper():
     def _setup_geometry(self):
         boneNames = ["proximal", "middle", "distal"]
         self._jointGeometry = {}
-        # self._tableRestOffset = 0.005
-        # self._tableHeightOffset = Gf.Vec3f(0.0, -2.3 + self._tableRestOffset, 0.0)
-        self._handPosOffset = Gf.Vec3f(0.0, 64.0, 0.0)
-        self._handInitPos = Gf.Vec3f(0.0, 94.0, 0.0)
-        # self._flamePosition = Gf.Vec3d(27.992, 100.97, -13.96)
-        # self._mugInitPos = Gf.Vec3f(10, 74.17879 + self._mugRestOffset, 0)
-        # self._candlePosition = Gf.Vec3f(28, 74, -14)
-        # self._mugInitRot = self.get_quat_from_extrinsic_xyz_rotation(angleYrad=-0.7 * math.pi)
-
-        # self._fluidPositionOffset = Gf.Vec3f(0, 1.05, 0)
-        # scale = 1.1
-        # self._mugScale = Gf.Vec3f(scale)
-        # self._mugOffset = Gf.Vec3f(1.1, 0, 15) * scale
 
         revoluteLimits = (-20, 120)
 
@@ -249,10 +243,10 @@ class HandHelper():
 
     def _rig_hand(self):
         self._set_bones_to_rb()
-        UsdPhysics.ArticulationRootAPI.Apply(self._baseMesh.GetPrim())
-        physxArticulationAPI = PhysxSchema.PhysxArticulationAPI.Apply(self._baseMesh.GetPrim())
-        physxArticulationAPI.GetSolverPositionIterationCountAttr().Set(15)
-        physxArticulationAPI.GetSolverVelocityIterationCountAttr().Set(0)
+        UsdPhysics.ArticulationRootAPI.Apply(self.stage.GetPrimAtPath("/World/Hand"))
+        # physxArticulationAPI = PhysxSchema.PhysxArticulationAPI.Apply(self._baseMesh.GetPrim())
+        # physxArticulationAPI.GetSolverPositionIterationCountAttr().Set(15)
+        # physxArticulationAPI.GetSolverVelocityIterationCountAttr().Set(0)
         self._setup_physics_material(self._baseMesh.GetPath())
         self._rig_hand_base()
         self._rig_fingers()
@@ -299,7 +293,7 @@ class HandHelper():
         jointGeom = self._jointGeometry[fingerName][boneName]
         jointType = jointGeom.type.lower()
 
-        print("jointType", parentBone, jointType, childBone, jointType)
+        # print("jointType", parentBone, jointType, childBone, jointType)
 
         parentWorldBB = computeMeshWorldBoundsFromPoints(parentBone)
         parentWorldPos = Gf.Vec3d(0.5 * (parentWorldBB[0] + parentWorldBB[1]))
@@ -311,10 +305,10 @@ class HandHelper():
 
         jointWorldPos = parentWorldPos + jointGeom.bbCenterWeight * (childWorldPos - parentWorldPos)
         
-        print("jointWorldPos", jointWorldPos, parentWorldPos)
+        # print("jointWorldPos", jointWorldPos, parentWorldPos)
         
         if jointGeom.posOffsetW is not None:
-            jointWorldPos += (jointGeom.posOffsetW / 100)
+            jointWorldPos += (jointGeom.posOffsetW)
             # print("jointGeom.posOffsetW", jointGeom.posOffsetW)
         jointParentPosition = parentLocalToWorld.GetInverse().Transform(jointWorldPos)
         jointChildPosition = childLocalToWorld.GetInverse().Transform(jointWorldPos)
@@ -373,7 +367,7 @@ class HandHelper():
             d6j.CreateLocalPos0Attr().Set(jointParentPosition)
             parentWorldToLocal = Gf.Quatf(parentLocalToWorld.GetInverse().RemoveScaleShear().ExtractRotationQuat())
             
-            print("D6DriverJoint parentWorldToLocal", jointParentPosition, jointChildPosition)
+            # print("D6DriverJoint parentWorldToLocal", jointParentPosition, jointChildPosition)
             
             d6j.CreateLocalRot0Attr().Set(parentWorldToLocal)
             d6j.CreateLocalPos1Attr().Set(jointChildPosition)
@@ -409,13 +403,13 @@ class HandHelper():
 
     def _rig_fingers(self):
         for fingerName, finger in self._fingerMeshes.items():
-            print("fingerName", fingerName)
+            # print("fingerName", fingerName)
             parentBone = self._baseMesh
             for boneName, bone in finger.items():
                 self._rig_joint(boneName, fingerName, parentBone)
                 parentBone = bone
 
-            return 
+            # return 
 
     def _rig_D6_anchor(self):
         # create anchor:
@@ -428,10 +422,10 @@ class HandHelper():
         self._anchorXform.AddTranslateOp().Set(xformLocalToWorldTrans)
         self._anchorXform.AddOrientOp().Set(xformLocalToWorldRot)
         self._anchorPositionRateLimiter = VectorRateOfChangeLimiter(
-            xformLocalToWorldTrans, 1.666, 0.5 ** (1 / 6)
+            xformLocalToWorldTrans, 0.01666, 0.5 ** (1 / 6) #! change max movement per frame
         )
         self._anchorQuatRateLimiter = QuaternionRateOfChangeLimiter(
-            xformLocalToWorldRot, 1.666, 0.5 ** (1 / 6)
+            xformLocalToWorldRot, 0.01666, 0.5 ** (1 / 6)
         )
         xformPrim = self._anchorXform.GetPrim()
         physicsAPI = UsdPhysics.RigidBodyAPI.Apply(xformPrim)
@@ -520,3 +514,159 @@ class HandHelper():
             for _, bone in finger.items():
                 self._set_bone_mesh_to_rigid_body_and_config(bone)
                 self._apply_mass(bone, 0.01) #! change mass
+
+    ########################### soft body #################################################
+
+    def _setup_skeleton_hand_db_tips(self, stage):
+
+        # SB and fluid:
+        self._sb_hand_schema_parameters = {
+            "youngsModulus": 1.0e5,
+            "poissonsRatio": 0.3,
+            "dampingScale": 1.0,
+            "dynamicFriction": 1.0,
+            "solver_position_iteration_count": 15,
+            "collisionRestOffset": 0.1,
+            "collisionContactOffset": 0.5,
+            "self_collision": False,
+            "vertex_velocity_damping": 0.005,
+            "sleep_damping": 0.001,  # disable
+            "sleep_threshold": 0.001,  # disable
+            "settling_threshold": 0.001,  # disable
+        }
+        self._sb_tips_schema_parameters = self._sb_hand_schema_parameters
+        self._sb_tips_schema_parameters["collisionRestOffset"] = 0.00001
+
+        self._sb_tips_resolution = 8
+        self._sb_hand_resolution = 20
+
+        # create and attach softbodies
+        sbTipsStringPaths = [
+            "LeftHandThumbTipScaled/geom",
+            "LeftHandIndexTipScaled/geom",
+            "LeftHandMiddleTipScaled/geom",
+            "LeftHandRingTipScaled/geom",
+            "LeftHandPinkyTipScaled/geom",
+        ]
+        sbTipsPaths = [self._tips_root_path.AppendPath(x) for x in sbTipsStringPaths]
+
+        sbTips_material_path = omni.usd.get_stage_next_free_path(stage, "/sbTipsMaterial", True)
+        deformableUtils.add_deformable_body_material(
+            stage,
+            sbTips_material_path,
+            youngs_modulus=self._sb_tips_schema_parameters["youngsModulus"],
+            poissons_ratio=self._sb_tips_schema_parameters["poissonsRatio"],
+            damping_scale=self._sb_tips_schema_parameters["dampingScale"],
+            dynamic_friction=self._sb_tips_schema_parameters["dynamicFriction"],
+        )
+
+        self._deformableTipMass = 0.01
+        for sbTipPath in sbTipsPaths:
+            self.set_softbody(
+                sbTipPath,
+                self._sb_tips_schema_parameters,
+                sbTips_material_path,
+                self._deformableTipMass,
+                self._sb_tips_resolution,
+            )
+
+        # rigid attach
+        attachmentBoneStringPaths = [
+            "l_thumbSkeleton_grp/l_distalThumb_mid",
+            "l_indexSkeleton_grp/l_distalIndex_mid",
+            "l_middleSkeleton_grp/l_distalMiddle_mid",
+            "l_ringSkeleton_grp/l_distalRing_mid",
+            "l_pinkySkeleton_grp/l_distalPinky_mid",
+            "l_thumbSkeleton_grp/l_metacarpalThumb_mid",
+            "l_indexSkeleton_grp/l_metacarpalIndex_mid",
+            "l_middleSkeleton_grp/l_metacarpalMiddle_mid",
+            "l_ringSkeleton_grp/l_metacarpalRing_mid",
+            "l_pinkySkeleton_grp/l_metacarpalPinky_mid",
+            "l_thumbSkeleton_grp/l_proximalThumb_mid",
+            "l_indexSkeleton_grp/l_proximalIndex_mid",
+            "l_middleSkeleton_grp/l_proximalMiddle_mid",
+            "l_ringSkeleton_grp/l_proximalRing_mid",
+            "l_pinkySkeleton_grp/l_proximalPinky_mid",
+            "l_indexSkeleton_grp/l_middleIndex_mid",
+            "l_middleSkeleton_grp/l_middleMiddle_mid",
+            "l_ringSkeleton_grp/l_middleRing_mid",
+            "l_pinkySkeleton_grp/l_middlePinky_mid",
+            "l_carpal_mid",
+        ]
+
+        # color of tips:
+        color_rgb = [161, 102, 94]
+        sbColor = Vt.Vec3fArray([Gf.Vec3f(color_rgb[0], color_rgb[1], color_rgb[2]) / 256.0])
+        attachmentBonePaths = [self._bones_root_path.AppendPath(x) for x in attachmentBoneStringPaths]
+        for sbTipPath, bonePath in zip(sbTipsPaths, attachmentBonePaths):
+            sbMesh = UsdGeom.Mesh.Get(stage, sbTipPath)
+            sbMesh.CreateDisplayColorAttr(sbColor)
+            boneMesh = UsdGeom.Mesh.Get(stage, bonePath)
+            self.create_softbody_rigid_attachment(sbMesh, boneMesh, 0)
+
+        softbodyGroupPath = "/World/physicsScene/collisionGroupSoftBodyTips"
+        boneGroupPath = "/World/physicsScene/collisionGroupHandBones"
+        softbodyGroup = UsdPhysics.CollisionGroup.Define(stage, softbodyGroupPath)
+        boneGroup = UsdPhysics.CollisionGroup.Define(stage, boneGroupPath)
+
+        filteredRel = softbodyGroup.CreateFilteredGroupsRel()
+        filteredRel.AddTarget(boneGroupPath)
+
+        filteredRel = boneGroup.CreateFilteredGroupsRel()
+        filteredRel.AddTarget(softbodyGroupPath)
+
+        for sbTipPath in sbTipsPaths:
+            self.assign_collision_group(sbTipPath, softbodyGroupPath)
+        # filter all SB tips vs bone rigid bodies collisions
+        self.assign_collision_group(self._baseMesh.GetPath(), boneGroupPath)
+        for finger in self._fingerMeshes.values():
+            for bone in finger.values():
+                self.assign_collision_group(bone.GetPath(), boneGroupPath)
+
+    def assign_collision_group(self, primPath: Sdf.Path, groupPath: Sdf.Path):
+        stage = self.stage
+        physicsUtils.add_collision_to_collision_group(stage, primPath, groupPath)
+
+    def set_softbody(
+        self, mesh_path: Sdf.Path, schema_parameters: dict, material_path: Sdf.Path, mass: float, resolution: int
+    ):
+
+        success = omni.kit.commands.execute(
+            "AddDeformableBodyComponentCommand",
+            skin_mesh_path=mesh_path,
+            voxel_resolution=resolution,
+            solver_position_iteration_count=schema_parameters["solver_position_iteration_count"],
+            self_collision=schema_parameters["self_collision"],
+            vertex_velocity_damping=schema_parameters["vertex_velocity_damping"],
+            sleep_damping=schema_parameters["sleep_damping"],
+            sleep_threshold=schema_parameters["sleep_threshold"],
+            settling_threshold=schema_parameters["settling_threshold"],
+        )
+
+        prim = self.stage.GetPrimAtPath(mesh_path)
+        physxCollisionAPI = PhysxSchema.PhysxCollisionAPI.Apply(prim)
+        assert physxCollisionAPI.CreateRestOffsetAttr().Set(schema_parameters["collisionRestOffset"])
+        assert physxCollisionAPI.CreateContactOffsetAttr().Set(schema_parameters["collisionContactOffset"])
+
+        massAPI = UsdPhysics.MassAPI.Apply(prim)
+        massAPI.CreateMassAttr().Set(mass)
+
+        physicsUtils.add_physics_material_to_prim(self.stage, self.stage.GetPrimAtPath(mesh_path), material_path)
+
+        assert success
+
+    def create_softbody_rigid_attachment(self, soft_body, gprim, id):
+        assert PhysxSchema.PhysxDeformableBodyAPI(soft_body)
+        assert UsdPhysics.CollisionAPI(gprim)
+
+        # get attachment to set parameters:
+        attachmentPath = soft_body.GetPath().AppendChild(f"rigid_attachment_{id}")
+
+        attachment = PhysxSchema.PhysxPhysicsAttachment.Define(self.stage, attachmentPath)
+        attachment.GetActor0Rel().SetTargets([soft_body.GetPath()])
+        attachment.GetActor1Rel().SetTargets([gprim.GetPath()])
+        PhysxSchema.PhysxAutoAttachmentAPI.Apply(attachment.GetPrim())
+
+        attachment = PhysxSchema.PhysxAutoAttachmentAPI.Get(self.stage, attachmentPath)
+        attachment.GetEnableDeformableVertexAttachmentsAttr().Set(True)
+        attachment.GetEnableRigidSurfaceAttachmentsAttr().Set(True)
