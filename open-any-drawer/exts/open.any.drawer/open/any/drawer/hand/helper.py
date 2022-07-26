@@ -243,13 +243,22 @@ class HandHelper():
 
     def _rig_hand(self):
         self._set_bones_to_rb()
-        UsdPhysics.ArticulationRootAPI.Apply(self.stage.GetPrimAtPath("/World/Hand"))
-        # physxArticulationAPI = PhysxSchema.PhysxArticulationAPI.Apply(self._baseMesh.GetPrim())
-        # physxArticulationAPI.GetSolverPositionIterationCountAttr().Set(15)
-        # physxArticulationAPI.GetSolverVelocityIterationCountAttr().Set(0)
+        self._rig_articulation_root()
         self._setup_physics_material(self._baseMesh.GetPath())
         self._rig_hand_base()
         self._rig_fingers()
+    
+    def _rig_articulation_root(self):
+        self.hand_prim = self.stage.GetPrimAtPath("/World/Hand")
+        UsdPhysics.ArticulationRootAPI.Apply(self.hand_prim)
+        physxArticulationAPI = PhysxSchema.PhysxArticulationAPI.Apply(self._baseMesh.GetPrim())
+        physxArticulationAPI.GetSolverPositionIterationCountAttr().Set(15)
+        physxArticulationAPI.GetSolverVelocityIterationCountAttr().Set(0)
+
+        fixedJointPath = self.hand_prim.GetPath().AppendChild(f"rootJoint")
+        fixedJoint = UsdPhysics.FixedJoint.Define(self.stage, fixedJointPath)
+        fixedJoint.CreateBody0Rel().SetTargets([])
+        fixedJoint.CreateBody1Rel().SetTargets([Sdf.Path("/World/Hand/Bones/l_carpal_mid")])
 
     def _rig_hand_base(self):
         basePath = self._baseMesh.GetPath()
@@ -263,7 +272,7 @@ class HandHelper():
                 continue
             for boneName, bone in finger.items():
                 if boneName == "metacarpal":
-                    fixedJointPath = bone.GetPath().AppendChild("baseFixedJoint")
+                    fixedJointPath = bone.GetPath().AppendChild(f"{fingerName}_baseFixedJoint")
                     fixedJoint = UsdPhysics.FixedJoint.Define(self.stage, fixedJointPath)
                     fixedJoint.CreateBody0Rel().SetTargets([basePath])
                     fixedJoint.CreateBody1Rel().SetTargets([bone.GetPath()])
@@ -314,36 +323,36 @@ class HandHelper():
         jointChildPosition = childLocalToWorld.GetInverse().Transform(jointWorldPos)
 
         if jointType == "revolute":
-            jointPath = childBone.GetPath().AppendChild("RevoluteJoint")
+            jointPath = childBone.GetPath().AppendChild(f"{fingerName}_{boneName}_RevoluteJoint")
             joint = UsdPhysics.RevoluteJoint.Define(self.stage, jointPath)
-        elif jointType == "spherical":
-            jointPath = childBone.GetPath().AppendChild("SphericalJoint")
-            joint = UsdPhysics.SphericalJoint.Define(self.stage, jointPath)
+        # elif jointType == "spherical":
+        #     jointPath = childBone.GetPath().AppendChild("SphericalJoint")
+        #     joint = UsdPhysics.SphericalJoint.Define(self.stage, jointPath)
 
-        joint.CreateBody0Rel().SetTargets([parentBone.GetPath()])
-        joint.CreateBody1Rel().SetTargets([childBone.GetPath()])
-        joint.CreateAxisAttr(jointGeom.axis)
+            joint.CreateBody0Rel().SetTargets([parentBone.GetPath()])
+            joint.CreateBody1Rel().SetTargets([childBone.GetPath()])
+            joint.CreateAxisAttr(jointGeom.axis)
 
-        # for the sphericals, the relative orientation does not matter as they are externally driven.
-        # for the revolutes, it is key that they are oriented correctly and that parent and child are identical
-        # in order to avoid offsets - offsets will be added in the joint commands
-        jointPose = Gf.Quatf(parentLocalToWorld.GetInverse().RemoveScaleShear().ExtractRotationQuat())
-        jointPose *= jointGeom.quat
-        # this is assuming that parent and child's frames coincide
-        joint.CreateLocalPos0Attr().Set(jointParentPosition)
-        joint.CreateLocalRot0Attr().Set(jointPose)
+            # for the sphericals, the relative orientation does not matter as they are externally driven.
+            # for the revolutes, it is key that they are oriented correctly and that parent and child are identical
+            # in order to avoid offsets - offsets will be added in the joint commands
+            jointPose = Gf.Quatf(parentLocalToWorld.GetInverse().RemoveScaleShear().ExtractRotationQuat())
+            jointPose *= jointGeom.quat
+            # this is assuming that parent and child's frames coincide
+            joint.CreateLocalPos0Attr().Set(jointParentPosition)
+            joint.CreateLocalRot0Attr().Set(jointPose)
 
-        joint.CreateLocalPos1Attr().Set(jointChildPosition)
-        joint.CreateLocalRot1Attr().Set(jointPose)
+            joint.CreateLocalPos1Attr().Set(jointChildPosition)
+            joint.CreateLocalRot1Attr().Set(jointPose)
 
-        physxJointAPI = PhysxSchema.PhysxJointAPI.Apply(joint.GetPrim())
-        physxJointAPI.GetMaxJointVelocityAttr().Set(self._maxJointVelocity)
-        physxJointAPI.GetJointFrictionAttr().Set(self._jointFriction)
+            physxJointAPI = PhysxSchema.PhysxJointAPI.Apply(joint.GetPrim())
+            physxJointAPI.GetMaxJointVelocityAttr().Set(self._maxJointVelocity)
+            physxJointAPI.GetJointFrictionAttr().Set(self._jointFriction)
 
         if jointType == "revolute":
             # for revolute create drive
             driveAPI = UsdPhysics.DriveAPI.Apply(joint.GetPrim(), "angular")
-            driveAPI.CreateTypeAttr("force")
+            driveAPI.CreateTypeAttr("acceleration")
             driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateDampingAttr(self._revolute_drive_damping)
             driveAPI.CreateStiffnessAttr(self._revolute_drive_stiffness)
@@ -358,12 +367,12 @@ class HandHelper():
             )
         elif jointType == "spherical":
             # add 6d external joint and drive:
-            d6path = childBone.GetPath().AppendChild("D6DriverJoint")
+            d6path = childBone.GetPath().AppendChild(f"{fingerName}_{boneName}_D6DriverJoint")
             d6j = UsdPhysics.Joint.Define(self.stage, d6path)
-            d6j.CreateExcludeFromArticulationAttr().Set(True)
+            # d6j.CreateExcludeFromArticulationAttr().Set(True)
             d6j.CreateBody0Rel().SetTargets([parentBone.GetPath()])
             d6j.CreateBody1Rel().SetTargets([childBone.GetPath()])
-            d6j.CreateExcludeFromArticulationAttr().Set(True)
+            # d6j.CreateExcludeFromArticulationAttr().Set(True)
             d6j.CreateLocalPos0Attr().Set(jointParentPosition)
             parentWorldToLocal = Gf.Quatf(parentLocalToWorld.GetInverse().RemoveScaleShear().ExtractRotationQuat())
             
@@ -385,9 +394,19 @@ class HandHelper():
             limitAPI.CreateLowAttr(1.0)
             limitAPI.CreateHighAttr(-1.0)
 
+            limitAPI = UsdPhysics.LimitAPI.Apply(d6j.GetPrim(), UsdPhysics.Tokens.transY)
+            limitAPI.CreateLowAttr(1.0)
+            limitAPI.CreateHighAttr(-1.0)
+            limitAPI = UsdPhysics.LimitAPI.Apply(d6j.GetPrim(), UsdPhysics.Tokens.transZ)
+            limitAPI.CreateLowAttr(1.0)
+            limitAPI.CreateHighAttr(-1.0)
+            limitAPI = UsdPhysics.LimitAPI.Apply(d6j.GetPrim(), UsdPhysics.Tokens.transX)
+            limitAPI.CreateLowAttr(1.0)
+            limitAPI.CreateHighAttr(-1.0)
+
             for d in drives:
                 driveAPI = UsdPhysics.DriveAPI.Apply(d6j.GetPrim(), d)
-                driveAPI.CreateTypeAttr("force")
+                driveAPI.CreateTypeAttr("acceleration")
                 driveAPI.CreateMaxForceAttr(self._drive_max_force)
                 driveAPI.CreateDampingAttr(self._spherical_drive_damping)
                 driveAPI.CreateStiffnessAttr(self._spherical_drive_stiffness)
@@ -456,7 +475,7 @@ class HandHelper():
         rootJointPrim = component.GetPrim()
         for dof in ["transX", "transY", "transZ"]:
             driveAPI = UsdPhysics.DriveAPI.Apply(rootJointPrim, dof)
-            driveAPI.CreateTypeAttr("force")
+            driveAPI.CreateTypeAttr("acceleration")
             driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
             driveAPI.CreateDampingAttr(self._d6LinearDamping)
@@ -464,7 +483,7 @@ class HandHelper():
 
         for rotDof in ["rotX", "rotY", "rotZ"]:
             driveAPI = UsdPhysics.DriveAPI.Apply(rootJointPrim, rotDof)
-            driveAPI.CreateTypeAttr("force")
+            driveAPI.CreateTypeAttr("acceleration")
             driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
             driveAPI.CreateDampingAttr(self._d6RotationalDamping)
@@ -505,7 +524,7 @@ class HandHelper():
     def _set_bone_mesh_to_rigid_body_and_config(self, mesh: UsdGeom.Mesh, approximationShape="convexHull"):
         prim = mesh.GetPrim()
         utils.setRigidBody(prim, approximationShape=approximationShape, kinematic=False)
-        self._setup_rb_parameters(prim, restOffset=0.0, contactOffset=0.01) #! change contact offset
+        self._setup_rb_parameters(prim, restOffset=0.0, contactOffset=1) 
 
     def _set_bones_to_rb(self):
         self._set_bone_mesh_to_rigid_body_and_config(self._baseMesh)

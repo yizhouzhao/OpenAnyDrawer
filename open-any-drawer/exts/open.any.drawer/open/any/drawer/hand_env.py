@@ -68,9 +68,19 @@ class HandEnv():
 
         jacobians = self.robots._physics_view.get_jacobians()
 
-        # jacobian entries corresponding to franka hand
-        franka_hand_index = 14  # !!!
-        j_eef = jacobians[:, franka_hand_index - 1, :]
+        # jacobian entries corresponding to correct finger
+        if finger == "thumb":
+            finger_index = 14
+        elif finger == "index":
+            finger_index = 15
+        elif finger == "middle":
+            finger_index = 16
+        elif finger == "pinky":
+            finger_index = 17
+        else: # ring
+            finger_index = 18
+
+        j_eef = jacobians[:, finger_index, :]
 
         # solve damped least squares
         j_eef_T = np.transpose(j_eef, (0, 2, 1))
