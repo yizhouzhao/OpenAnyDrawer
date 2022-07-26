@@ -52,7 +52,7 @@ class OpenEnv():
         # import robot
         self.robot = Franka("/World/Game/Franka")
 
-    def add_object(self, obj_idx = 0, x_offset = 0.6):
+    def add_object(self, obj_idx = 0, x_offset = 6, scale = 1):
         from utils import get_bounding_box, add_physical_material_to, fix_linear_joint
 
         print("add object")
@@ -77,7 +77,7 @@ class OpenEnv():
         
         xform = pxr.Gf.Matrix4d().SetRotate(pxr.Gf.Quatf(1.0,0.0,0.0,0.0)) * \
             pxr.Gf.Matrix4d().SetTranslate([0,0,0]) * \
-                pxr.Gf.Matrix4d().SetScale([0.7,0.7,0.7])
+                pxr.Gf.Matrix4d().SetScale([7.0 * scale,7.0 *scale,7.0 * scale])
         
         omni.kit.commands.execute(
                 "TransformPrimCommand", 
@@ -87,7 +87,7 @@ class OpenEnv():
 
         # get obj bounding box
         bboxes = get_bounding_box(mobility_prim_path)
-        position = [-bboxes[0][0] + x_offset, 0, -bboxes[0][2]]
+        position = [-bboxes[0][0] + x_offset * scale, 0, -bboxes[0][2]]
         xform.SetTranslateOnly(position)
 
         omni.kit.commands.execute(

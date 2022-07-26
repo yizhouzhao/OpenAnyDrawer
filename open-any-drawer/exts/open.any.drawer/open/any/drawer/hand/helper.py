@@ -246,19 +246,45 @@ class HandHelper():
         self._rig_articulation_root()
         self._setup_physics_material(self._baseMesh.GetPath())
         self._rig_hand_base()
-        self._rig_fingers()
+        # self._rig_fingers()
     
     def _rig_articulation_root(self):
         self.hand_prim = self.stage.GetPrimAtPath("/World/Hand")
-        UsdPhysics.ArticulationRootAPI.Apply(self.hand_prim)
+        self.bone_prim = self.stage.GetPrimAtPath("/World/Hand/Bones")
+
+        # reset bone XForm
+        mat = Gf.Matrix4d()
+        self.bone_prim.GetAttribute("xformOp:transform").Set(mat)
+        # bone_xform = UsdGeom.Xformable(self.bone_prim)
+        # bone_xform.ClearXformOpOrder()
+        # precision = UsdGeom.XformOp.PrecisionFloat
+        # bone_xform.AddTranslateOp(precision=precision).Set(Gf.Vec3f(0))
+        # bone_xform.AddOrientOp(precision=precision).Set(Gf.Quatf(1,0,0,0))
+        # bone_xform.AddScaleOp(precision=precision).Set(Gf.Vec3f(1))
+
+        UsdPhysics.ArticulationRootAPI.Apply(self.bone_prim)
         physxArticulationAPI = PhysxSchema.PhysxArticulationAPI.Apply(self._baseMesh.GetPrim())
         physxArticulationAPI.GetSolverPositionIterationCountAttr().Set(15)
         physxArticulationAPI.GetSolverVelocityIterationCountAttr().Set(0)
 
-        fixedJointPath = self.hand_prim.GetPath().AppendChild(f"rootJoint")
+        fixedJointPath = self.bone_prim.GetPath().AppendChild(f"rootJoint")
         fixedJoint = UsdPhysics.FixedJoint.Define(self.stage, fixedJointPath)
         fixedJoint.CreateBody0Rel().SetTargets([])
         fixedJoint.CreateBody1Rel().SetTargets([Sdf.Path("/World/Hand/Bones/l_carpal_mid")])
+
+        parentWorldBB = computeMeshWorldBoundsFromPoints(self._baseMesh)
+        self._base_mesh_world_pos = Gf.Vec3f(0.5 * (parentWorldBB[0] + parentWorldBB[1]))
+
+        # fixedJoint.CreateLocalPos0Attr().Set(Gf.Vec3f(0))
+        # fixedJoint.CreateLocalRot0Attr().Set(Gf.Quatf(1.0))
+
+        fixedJoint.CreateLocalPos1Attr().Set(-self._base_mesh_world_pos)
+        fixedJoint.CreateLocalRot1Attr().Set(Gf.Quatf(1.0))
+
+ 
+
+        print("rootJoint", self._base_mesh_world_pos)
+        
 
     def _rig_hand_base(self):
         basePath = self._baseMesh.GetPath()
@@ -524,7 +550,7 @@ class HandHelper():
     def _set_bone_mesh_to_rigid_body_and_config(self, mesh: UsdGeom.Mesh, approximationShape="convexHull"):
         prim = mesh.GetPrim()
         utils.setRigidBody(prim, approximationShape=approximationShape, kinematic=False)
-        self._setup_rb_parameters(prim, restOffset=0.0, contactOffset=1) 
+        # self._setup_rb_parameters(prim, restOffset=0.0, contactOffset=1) 
 
     def _set_bones_to_rb(self):
         self._set_bone_mesh_to_rigid_body_and_config(self._baseMesh)
@@ -532,6 +558,7 @@ class HandHelper():
         for _, finger in self._fingerMeshes.items():
             for _, bone in finger.items():
                 self._set_bone_mesh_to_rigid_body_and_config(bone)
+                self._setup_physics_material(bone.GetPrim().GetPath()) #! add matril
                 self._apply_mass(bone, 0.01) #! change mass
 
     ########################### soft body #################################################

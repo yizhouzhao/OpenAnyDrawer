@@ -38,6 +38,9 @@ class MyExtension(omni.ext.IExt):
                     ui.Label("object index: ", width = 80)
                     self.object_id_ui = omni.ui.IntField(height=20, width = 40, style={ "margin": 2 })
                     self.object_id_ui.model.set_value(0)
+                    ui.Label("object scale: ", width = 80)
+                    self.object_scale_ui = omni.ui.FloatField(height=20, width = 40, style={ "margin": 2 })
+                    self.object_scale_ui.model.set_value(1.0)
                     ui.Button("Add Object", clicked_fn=self.add_object)
 
                 ui.Button("Add Ground", clicked_fn=self.add_ground)
@@ -52,7 +55,8 @@ class MyExtension(omni.ext.IExt):
 
     def add_object(self):
         object_id = self.object_id_ui.model.get_value_as_int()
-        self.env.add_object(object_id)
+        object_scale = self.object_scale_ui.model.get_value_as_float()
+        self.env.add_object(object_id, scale = object_scale)
 
     def on_shutdown(self):
         print("[open.any.drawer] MyExtension shutdown")
