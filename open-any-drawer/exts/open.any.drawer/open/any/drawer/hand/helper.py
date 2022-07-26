@@ -27,10 +27,10 @@ class HandHelper():
         # Joint drives / params:
         radToDeg = 180.0 / math.pi
         self._drive_max_force = 1e20
-        self._revolute_drive_stiffness = 10000000 / radToDeg  # 50000.0
-        self._spherical_drive_stiffness = 22000000 / radToDeg  # 50000.0
-        self._revolute_drive_damping = 0.2 * self._revolute_drive_stiffness
-        self._spherical_drive_damping = 0.2 * self._spherical_drive_stiffness
+        self._revolute_drive_stiffness = 0 # 10000000 / radToDeg  # 50000.0
+        self._spherical_drive_stiffness = 0 #22000000 / radToDeg  # 50000.0
+        self._revolute_drive_damping =  50000.0 # 0.2 * self._revolute_drive_stiffness
+        self._spherical_drive_damping = 50000.0 # 0.2 * self._spherical_drive_stiffness
         self._maxJointVelocity = 3.0 * radToDeg
         self._jointFriction = 0  # 0.01
 
@@ -59,7 +59,7 @@ class HandHelper():
         self._setup_mesh_tree()
         self._rig_hand()
         # self._rig_D6_anchor()
-        # self._setup_skeleton_hand_db_tips(self.stage)
+        self._setup_skeleton_hand_db_tips(self.stage)
 
     def import_hand(self):
         # import skeleton hand
@@ -82,9 +82,9 @@ class HandHelper():
         hand_xform.AddOrientOp(precision=precision).Set(Gf.Quatf(1,0,0,0))
         hand_xform.AddScaleOp(precision=precision).Set(Gf.Vec3f(1))
 
-        # ! disable tips
+        #! disable tips
         tips_prim  = self.stage.GetPrimAtPath(self._tips_root_path.pathString)
-        tips_prim.SetActive(False)
+        # tips_prim.SetActive(False)
 
          # Physics scene
         physicsScenePath = default_prim_path.AppendChild("physicsScene")
@@ -246,21 +246,16 @@ class HandHelper():
         self._rig_articulation_root()
         self._setup_physics_material(self._baseMesh.GetPath())
         self._rig_hand_base()
-        # self._rig_fingers()
+        self._rig_fingers()
     
     def _rig_articulation_root(self):
         self.hand_prim = self.stage.GetPrimAtPath("/World/Hand")
         self.bone_prim = self.stage.GetPrimAtPath("/World/Hand/Bones")
 
         # reset bone XForm
-        mat = Gf.Matrix4d()
-        self.bone_prim.GetAttribute("xformOp:transform").Set(mat)
-        # bone_xform = UsdGeom.Xformable(self.bone_prim)
-        # bone_xform.ClearXformOpOrder()
-        # precision = UsdGeom.XformOp.PrecisionFloat
-        # bone_xform.AddTranslateOp(precision=precision).Set(Gf.Vec3f(0))
-        # bone_xform.AddOrientOp(precision=precision).Set(Gf.Quatf(1,0,0,0))
-        # bone_xform.AddScaleOp(precision=precision).Set(Gf.Vec3f(1))
+        # mat = Gf.Matrix4d()
+        # self.bone_prim.GetAttribute("xformOp:transform").Set(mat)
+
 
         UsdPhysics.ArticulationRootAPI.Apply(self.bone_prim)
         physxArticulationAPI = PhysxSchema.PhysxArticulationAPI.Apply(self._baseMesh.GetPrim())
@@ -554,12 +549,12 @@ class HandHelper():
 
     def _set_bones_to_rb(self):
         self._set_bone_mesh_to_rigid_body_and_config(self._baseMesh)
-        self._apply_mass(self._baseMesh, 0.01) #! change mass
+        self._apply_mass(self._baseMesh, 0) #! change mass
         for _, finger in self._fingerMeshes.items():
             for _, bone in finger.items():
                 self._set_bone_mesh_to_rigid_body_and_config(bone)
                 self._setup_physics_material(bone.GetPrim().GetPath()) #! add matril
-                self._apply_mass(bone, 0.01) #! change mass
+                self._apply_mass(bone, 0) #! change mass
 
     ########################### soft body #################################################
 
