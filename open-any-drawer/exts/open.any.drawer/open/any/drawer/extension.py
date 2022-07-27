@@ -769,13 +769,13 @@ class MyExtension(omni.ext.IExt):
             driveAPI.CreateTypeAttr("force")
             # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
-            driveAPI.CreateDampingAttr(1e5)
-            driveAPI.CreateStiffnessAttr(1e5)
+            driveAPI.CreateDampingAttr(1e4)
+            driveAPI.CreateStiffnessAttr(1e4)
 
         for rotDof in ["rotX", "rotY", "rotZ"]:
             driveAPI = UsdPhysics.DriveAPI.Apply(rootJointPrim, rotDof)
             driveAPI.CreateTypeAttr("force")
             # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
-            driveAPI.CreateDampingAttr(1e5)
-            driveAPI.CreateStiffnessAttr(1e5)
+            driveAPI.CreateDampingAttr(1e4)
+            driveAPI.CreateStiffnessAttr(1e4)
