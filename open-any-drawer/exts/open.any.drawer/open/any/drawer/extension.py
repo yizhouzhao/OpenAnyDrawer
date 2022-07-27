@@ -47,6 +47,8 @@ class MyExtension(omni.ext.IExt):
 
                 ui.Button("Debug", clicked_fn= self.debug)
                 ui.Button("Debug2", clicked_fn= self.debug2)
+                ui.Button("Rig D6", clicked_fn= self.debug_rig_d6)
+                
 
     def add_ground(self):
         from utils import add_ground_plane
@@ -261,8 +263,8 @@ class MyExtension(omni.ext.IExt):
         self._jointGeometry["Pinky"] = dict(zip(boneNames, geoms))
 
     def _setup_mesh_tree(self):
-        self._baseMesh = UsdGeom.Mesh.Get(self._stage, self._bones_root_path.AppendChild("l_carpal_mid"))
-        assert self._baseMesh
+        self._articulation_root = UsdGeom.Mesh.Get(self._stage, self._bones_root_path.AppendChild("l_carpal_mid"))
+        assert self._articulation_root
         boneNames = ["metacarpal", "proximal", "middle", "distal"]
         fingerNames = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
         self._fingerMeshes = {}
@@ -281,19 +283,19 @@ class MyExtension(omni.ext.IExt):
 
     def _rig_hand(self):
         self._set_bones_to_rb()
-        UsdPhysics.ArticulationRootAPI.Apply(self._baseMesh.GetPrim())
-        physxArticulationAPI = PhysxSchema.PhysxArticulationAPI.Apply(self._baseMesh.GetPrim())
+        UsdPhysics.ArticulationRootAPI.Apply(self._articulation_root.GetPrim())
+        physxArticulationAPI = PhysxSchema.PhysxArticulationAPI.Apply(self._articulation_root.GetPrim())
         physxArticulationAPI.GetSolverPositionIterationCountAttr().Set(15)
         physxArticulationAPI.GetSolverVelocityIterationCountAttr().Set(0)
-        self._setup_physics_material(self._baseMesh.GetPath())
+        self._setup_physics_material(self._articulation_root.GetPath())
         self._rig_hand_base()
         self._rig_fingers()
 
     def _rig_hand_base(self):
-        basePath = self._baseMesh.GetPath()
-        parentWorldBB = self._computeMeshWorldBoundsFromPoints(self._baseMesh)
+        basePath = self._articulation_root.GetPath()
+        parentWorldBB = self._computeMeshWorldBoundsFromPoints(self._articulation_root)
         self._base_mesh_world_pos = Gf.Vec3f(0.5 * (parentWorldBB[0] + parentWorldBB[1]))
-        baseLocalToWorld = self._baseMesh.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+        baseLocalToWorld = self._articulation_root.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
 
         for fingerName, finger in self._fingerMeshes.items():
             if fingerName == "Thumb":
@@ -432,7 +434,7 @@ class MyExtension(omni.ext.IExt):
 
     def _rig_fingers(self):
         for fingerName, finger in self._fingerMeshes.items():
-            parentBone = self._baseMesh
+            parentBone = self._articulation_root
             for boneName, bone in finger.items():
                 self._rig_joint(boneName, fingerName, parentBone)
                 parentBone = bone
@@ -463,7 +465,7 @@ class MyExtension(omni.ext.IExt):
             self._stage, self._stage.GetDefaultPrim().GetPath().AppendChild("AnchorToHandBaseD6")
         )
 
-        baseLocalToWorld = self._baseMesh.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+        baseLocalToWorld = self._articulation_root.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
         jointPosition = baseLocalToWorld.GetInverse().Transform(xformLocalToWorldTrans)
         jointPose = Gf.Quatf(baseLocalToWorld.GetInverse().RemoveScaleShear().ExtractRotationQuat())
 
@@ -472,7 +474,7 @@ class MyExtension(omni.ext.IExt):
         component.CreateLocalRot0Attr().Set(Gf.Quatf(1.0))
         component.CreateBody0Rel().SetTargets([self._anchorXform.GetPath()])
 
-        component.CreateBody1Rel().SetTargets([self._baseMesh.GetPath()])
+        component.CreateBody1Rel().SetTargets([self._articulation_root.GetPath()])
         component.CreateLocalPos1Attr().Set(jointPosition)
         component.CreateLocalRot1Attr().Set(jointPose)
 
@@ -599,7 +601,7 @@ class MyExtension(omni.ext.IExt):
         for sbTipPath in sbTipsPaths:
             self.assign_collision_group(sbTipPath, softbodyGroupPath)
         # filter all SB tips vs bone rigid bodies collisions
-        self.assign_collision_group(self._baseMesh.GetPath(), boneGroupPath)
+        self.assign_collision_group(self._articulation_root.GetPath(), boneGroupPath)
         for finger in self._fingerMeshes.values():
             for bone in finger.values():
                 self.assign_collision_group(bone.GetPath(), boneGroupPath)
@@ -690,8 +692,8 @@ class MyExtension(omni.ext.IExt):
         self._setup_rb_parameters(prim, restOffset=0.0, contactOffset=0.1)
 
     def _set_bones_to_rb(self):
-        self._set_bone_mesh_to_rigid_body_and_config(self._baseMesh)
-        self._apply_mass(self._baseMesh, 0.1)
+        self._set_bone_mesh_to_rigid_body_and_config(self._articulation_root)
+        self._apply_mass(self._articulation_root, 0.1)
         for _, finger in self._fingerMeshes.items():
             for _, bone in finger.items():
                 self._set_bone_mesh_to_rigid_body_and_config(bone)
@@ -721,3 +723,59 @@ class MyExtension(omni.ext.IExt):
         print("debug2")
         from .hand.helper import HandHelper
         self.hand_helper = HandHelper()
+
+    def debug_rig_d6(self):
+        self._stage = omni.usd.get_context().get_stage()
+        # create anchor:
+        self._anchorXform = UsdGeom.Xform.Define(
+            self._stage, self._stage.GetDefaultPrim().GetPath().AppendChild("AnchorXform")
+        )
+        # these are global coords because world is the xform's parent
+        xformLocalToWorldTrans = Gf.Vec3f(0)
+        xformLocalToWorldRot = Gf.Quatf(1.0)
+        self._anchorXform.AddTranslateOp().Set(xformLocalToWorldTrans)
+        self._anchorXform.AddOrientOp().Set(xformLocalToWorldRot)
+      
+        xformPrim = self._anchorXform.GetPrim()
+        physicsAPI = UsdPhysics.RigidBodyAPI.Apply(xformPrim)
+        physicsAPI.CreateRigidBodyEnabledAttr(True)
+        physicsAPI.CreateKinematicEnabledAttr(True)
+
+        # setup joint to floating hand base
+        component = UsdPhysics.Joint.Define(
+            self._stage, self._stage.GetDefaultPrim().GetPath().AppendChild("AnchorToHandBaseD6")
+        )
+
+        self._articulation_root = self._stage.GetPrimAtPath("/World/allegro/allegro_mount")
+        baseLocalToWorld = UsdGeom.Xformable(self._articulation_root).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+        jointPosition = baseLocalToWorld.GetInverse().Transform(xformLocalToWorldTrans)
+        jointPose = Gf.Quatf(baseLocalToWorld.GetInverse().RemoveScaleShear().ExtractRotationQuat())
+
+        component.CreateExcludeFromArticulationAttr().Set(True)
+        component.CreateLocalPos0Attr().Set(Gf.Vec3f(0.0))
+        component.CreateLocalRot0Attr().Set(Gf.Quatf(1.0))
+        component.CreateBody0Rel().SetTargets([self._anchorXform.GetPath()])
+
+        component.CreateBody1Rel().SetTargets([self._articulation_root.GetPath()])
+        component.CreateLocalPos1Attr().Set(jointPosition)
+        component.CreateLocalRot1Attr().Set(jointPose)
+
+        component.CreateBreakForceAttr().Set(sys.float_info.max)
+        component.CreateBreakTorqueAttr().Set(sys.float_info.max)
+
+        rootJointPrim = component.GetPrim()
+        for dof in ["transX", "transY", "transZ"]:
+            driveAPI = UsdPhysics.DriveAPI.Apply(rootJointPrim, dof)
+            driveAPI.CreateTypeAttr("force")
+            # driveAPI.CreateMaxForceAttr(self._drive_max_force)
+            driveAPI.CreateTargetPositionAttr(0.0)
+            driveAPI.CreateDampingAttr(1e5)
+            driveAPI.CreateStiffnessAttr(1e5)
+
+        for rotDof in ["rotX", "rotY", "rotZ"]:
+            driveAPI = UsdPhysics.DriveAPI.Apply(rootJointPrim, rotDof)
+            driveAPI.CreateTypeAttr("force")
+            # driveAPI.CreateMaxForceAttr(self._drive_max_force)
+            driveAPI.CreateTargetPositionAttr(0.0)
+            driveAPI.CreateDampingAttr(1e5)
+            driveAPI.CreateStiffnessAttr(1e5)

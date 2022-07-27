@@ -6,6 +6,7 @@ import numpy as np
 
 from hand.helper import HandHelper
 from numpy_utils import *
+from utils import get_mesh_bboxes
 
 from omni.isaac.core import World, SimulationContext
 from omni.isaac.core.prims.xform_prim_view import XFormPrimView
@@ -49,6 +50,30 @@ class HandEnv():
         self.initial_dof_vel = self.dof_vel
 
         self.xforms = XFormPrimView(self.xform_paths_expr)
+
+    def calculate_grasp_location(keyword = "handle_", verticle = True, x_offset = 0.086):
+        """
+        Calculate the grasp location for the handle
+        """
+        bboxes_list = get_mesh_bboxes(keyword) 
+
+        # assert len(bboxes_list) == self.num_envs, "more than one handle!"
+
+        # get center and min x axis
+        min_x = bboxes_list[0][0][0] # 
+        center_list = [(e[1] + e[0]) / 2 for e in bboxes_list] # box center
+
+        grasp_list = [[min_x - x_offset, c[1], c[2]] for c in center_list]
+
+        graps_pos = np.array(grasp_list, dtype=np.float32)
+        
+        base_rotation = [0.5, 0.5, 0.5, 0.5] if verticle else [0, 0.70711, 0, 0.70711]
+        grasp_rot = np.array([base_rotation], dtype=np.float32)# XYZW
+        
+        # rotation: 0, 0.70711, 0, 0.70711; 0, 90, 0
+        # rotation:[0.5, 0.5, 0.5, 0.5]
+
+        return graps_pos, grasp_rot
 
     def move_to_target(self, goal_pos, goal_rot, finger = "thumb"):
         """

@@ -263,29 +263,29 @@ class HandHelper():
         if self.tip_prim :
             self.tip_prim.GetAttribute("xformOp:transform").Set(mat)
 
-
-        UsdPhysics.ArticulationRootAPI.Apply(self._baseMesh.GetPrim())
-        physxArticulationAPI = PhysxSchema.PhysxArticulationAPI.Apply(self._baseMesh.GetPrim())
+        ropt_prim = self.hand_prim # self._baseMesh.GetPrim()
+        UsdPhysics.ArticulationRootAPI.Apply(ropt_prim)
+        physxArticulationAPI = PhysxSchema.PhysxArticulationAPI.Apply(ropt_prim)
         physxArticulationAPI.GetSolverPositionIterationCountAttr().Set(15)
         physxArticulationAPI.GetSolverVelocityIterationCountAttr().Set(0)
         
-        fixedJointPath = self.bone_prim.GetPath().AppendChild(f"rootJoint")
-        fixedJoint = UsdPhysics.FixedJoint.Define(self.stage, fixedJointPath)
-        fixedJoint.CreateBody0Rel().SetTargets([])
-        fixedJoint.CreateBody1Rel().SetTargets([Sdf.Path("/World/Hand/Bones/l_carpal_mid")])
+        # fixedJointPath = ropt_prim.GetPath().AppendChild(f"rootJoint")
+        # fixedJoint = UsdPhysics.FixedJoint.Define(self.stage, fixedJointPath)
+        # fixedJoint.CreateBody0Rel().SetTargets([])
+        # fixedJoint.CreateBody1Rel().SetTargets([Sdf.Path("/World/Hand/Bones/l_carpal_mid")])
 
-        parentWorldBB = computeMeshWorldBoundsFromPoints(self._baseMesh)
-        self._base_mesh_world_pos = Gf.Vec3f(0.5 * (parentWorldBB[0] + parentWorldBB[1]))
+        # parentWorldBB = computeMeshWorldBoundsFromPoints(self._baseMesh)
+        # self._base_mesh_world_pos = Gf.Vec3f(0.5 * (parentWorldBB[0] + parentWorldBB[1]))
 
-        # fixedJoint.CreateLocalPos0Attr().Set(Gf.Vec3f(0))
-        # fixedJoint.CreateLocalRot0Attr().Set(Gf.Quatf(1.0))
+        # # fixedJoint.CreateLocalPos0Attr().Set(Gf.Vec3f(0))
+        # # fixedJoint.CreateLocalRot0Attr().Set(Gf.Quatf(1.0))
 
-        fixedJoint.CreateLocalPos1Attr().Set(-self._base_mesh_world_pos)
-        fixedJoint.CreateLocalRot1Attr().Set(Gf.Quatf(1.0))
+        # fixedJoint.CreateLocalPos1Attr().Set(-self._base_mesh_world_pos)
+        # fixedJoint.CreateLocalRot1Attr().Set(Gf.Quatf(1.0))
 
  
 
-        print("rootJoint", self._base_mesh_world_pos)
+        # print("rootJoint", self._base_mesh_world_pos)
         
 
     def _rig_hand_base(self):
