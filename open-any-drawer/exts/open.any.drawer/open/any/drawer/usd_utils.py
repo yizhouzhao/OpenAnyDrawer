@@ -1,4 +1,5 @@
 from pxr import Gf
+import omni
 
 def calcuate_rotation_axis(q, axis = 2, direction = 0):
     """

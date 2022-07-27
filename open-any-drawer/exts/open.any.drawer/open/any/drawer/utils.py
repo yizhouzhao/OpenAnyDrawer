@@ -1,4 +1,5 @@
 # utility
+import numpy as np
 
 import omni
 from omni.physx.scripts import physicsUtils
@@ -34,6 +35,19 @@ def get_bounding_box(prim_path: str):
     game_bboxes = [bboxes.ComputeAlignedRange().GetMin(),bboxes.ComputeAlignedRange().GetMax()]
     
     return game_bboxes
+
+def get_mesh_bboxes(keyword: str):
+    stage = omni.usd.get_context().get_stage()
+    prim_list = list(stage.TraverseAll())
+    prim_list = [ item for item in prim_list if keyword in item.GetPath().pathString and item.GetTypeName() == 'Mesh' ]
+
+    bboxes_list  = []
+    for prim in prim_list:
+        bboxes = get_bounding_box(prim.GetPath().pathString)
+        bboxes_list.append(bboxes)
+
+    return bboxes_list
+
 
 def add_physical_material_to(keyword:str):
     """
