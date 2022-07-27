@@ -14,6 +14,7 @@ from .limiter import *
 class HandHelper():
     def __init__(self) -> None:
         self.stage  = omni.usd.get_context().get_stage()
+        self._scale = 0.01
         
         #########################################################
         ################### constants ###########################
@@ -34,7 +35,7 @@ class HandHelper():
         self._maxJointVelocity = 3.0 * radToDeg
         self._jointFriction = 0  # 0.01
         
-        self._finger_mass = 0.1
+        self._finger_mass = 0.5
         mHand = self._finger_mass * 20.0 + self._finger_mass + self._finger_mass
         dh = 0.05
         self._d6LinearSpring = mHand * 100 / dh
@@ -87,7 +88,7 @@ class HandHelper():
         precision = UsdGeom.XformOp.PrecisionFloat
         hand_xform.AddTranslateOp(precision=precision).Set(self._handInitPos)
         hand_xform.AddOrientOp(precision=precision).Set(Gf.Quatf(1,0,0,0))
-        hand_xform.AddScaleOp(precision=precision).Set(Gf.Vec3f(1))
+        hand_xform.AddScaleOp(precision=precision).Set(Gf.Vec3f(self._scale))
 
 
         # Physics scene
@@ -263,7 +264,7 @@ class HandHelper():
         if self.tip_prim :
             self.tip_prim.GetAttribute("xformOp:transform").Set(mat)
 
-        ropt_prim = self.hand_prim # self._baseMesh.GetPrim()
+        ropt_prim = self._baseMesh.GetPrim()
         UsdPhysics.ArticulationRootAPI.Apply(ropt_prim)
         physxArticulationAPI = PhysxSchema.PhysxArticulationAPI.Apply(ropt_prim)
         physxArticulationAPI.GetSolverPositionIterationCountAttr().Set(15)
@@ -345,7 +346,7 @@ class HandHelper():
         # print("jointWorldPos", jointWorldPos, parentWorldPos)
         
         if jointGeom.posOffsetW is not None:
-            jointWorldPos += (jointGeom.posOffsetW)
+            jointWorldPos += jointGeom.posOffsetW * self._scale
             # print("jointGeom.posOffsetW", jointGeom.posOffsetW)
         jointParentPosition = parentLocalToWorld.GetInverse().Transform(jointWorldPos)
         jointChildPosition = childLocalToWorld.GetInverse().Transform(jointWorldPos)
@@ -507,22 +508,22 @@ class HandHelper():
         for dof in ["transX", "transY", "transZ"]:
             driveAPI = UsdPhysics.DriveAPI.Apply(rootJointPrim, dof)
             driveAPI.CreateTypeAttr("acceleration")
-            driveAPI.CreateMaxForceAttr(self._drive_max_force)
+            # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
-            driveAPI.CreateDampingAttr(self._d6LinearDamping)
-            driveAPI.CreateStiffnessAttr(self._d6LinearSpring)
+            driveAPI.CreateDampingAttr(1e4)
+            driveAPI.CreateStiffnessAttr(1e4)
 
         for rotDof in ["rotX", "rotY", "rotZ"]:
             driveAPI = UsdPhysics.DriveAPI.Apply(rootJointPrim, rotDof)
             driveAPI.CreateTypeAttr("acceleration")
-            driveAPI.CreateMaxForceAttr(self._drive_max_force)
+            # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
-            driveAPI.CreateDampingAttr(self._d6RotationalDamping)
-            driveAPI.CreateStiffnessAttr(self._d6RotationalSpring)
+            driveAPI.CreateDampingAttr(1e4)
+            driveAPI.CreateStiffnessAttr(1e4)
 
-            limitAPI = UsdPhysics.LimitAPI.Apply(rootJointPrim, rotDof)
-            limitAPI.CreateLowAttr(1.0)
-            limitAPI.CreateHighAttr(-1.0)
+            # limitAPI = UsdPhysics.LimitAPI.Apply(rootJointPrim, rotDof)
+            # limitAPI.CreateLowAttr(1.0)
+            # limitAPI.CreateHighAttr(-1.0)
     
      ########################################## physics ###################################
 
@@ -574,12 +575,12 @@ class HandHelper():
         # utils.setRigidBody(self.stage.GetPrimAtPath("/World/Hand"), approximationShape="convexHull", kinematic=False)
         # return 
         self._set_bone_mesh_to_rigid_body_and_config(self._baseMesh)
-        # self._apply_mass(self._baseMesh, self._finger_mass) 
+        self._apply_mass(self._baseMesh, self._finger_mass) 
         for _, finger in self._fingerMeshes.items():
             for _, bone in finger.items():
                 self._set_bone_mesh_to_rigid_body_and_config(bone)
                 self._setup_physics_material(bone.GetPrim().GetPath()) #! add physical material
-                # self._apply_mass(bone, self._finger_mass) 
+                self._apply_mass(bone, self._finger_mass) 
 
     ########################### soft body #################################################
 

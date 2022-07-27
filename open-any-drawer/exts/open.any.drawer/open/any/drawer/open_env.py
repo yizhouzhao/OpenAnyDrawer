@@ -69,8 +69,17 @@ class OpenEnv():
         if not prim.IsValid():
             prim = self.stage.DefinePrim(mobility_prim_path)
         
-        object_ids = os.listdir(os.path.join(ROOT, "Asset/Sapien/StorageFurniture/"))
-        obj_usd_path = os.path.join(ROOT, f"Asset/Sapien/StorageFurniture/{object_ids[obj_idx]}/mobility.usd")
+        # loading asset from Omniverse Nucleus or local
+        try:
+            asset_root = "omniverse://localhost/Users/yizhou"
+            r = omni.client.list(os.path.join(asset_root, "Asset/Sapien/StorageFurniture/"))
+            print("omni client", r[0], [e.relative_path for e in r[1]])
+            object_ids = sorted([e.relative_path for e in r[1]])
+        except:
+            asset_root = ROOT
+            object_ids = sorted(os.listdir(os.path.join(asset_root, "Asset/Sapien/StorageFurniture/")))
+        
+        obj_usd_path = os.path.join(asset_root, f"Asset/Sapien/StorageFurniture/{object_ids[obj_idx]}/mobility.usd")
         success_bool = prim.GetReferences().AddReference(obj_usd_path)
         assert success_bool, f"Import error at usd {obj_usd_path}"
 

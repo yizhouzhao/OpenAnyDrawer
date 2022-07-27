@@ -726,9 +726,10 @@ class MyExtension(omni.ext.IExt):
 
     def debug_rig_d6(self):
         self._stage = omni.usd.get_context().get_stage()
+        self._damping_stiffness = 1e4
         # create anchor:
         self._anchorXform = UsdGeom.Xform.Define(
-            self._stage, self._stage.GetDefaultPrim().GetPath().AppendChild("AnchorXform")
+            self._stage, Sdf.Path("/World/allegro/AnchorXform")
         )
         # these are global coords because world is the xform's parent
         xformLocalToWorldTrans = Gf.Vec3f(0)
@@ -743,7 +744,7 @@ class MyExtension(omni.ext.IExt):
 
         # setup joint to floating hand base
         component = UsdPhysics.Joint.Define(
-            self._stage, self._stage.GetDefaultPrim().GetPath().AppendChild("AnchorToHandBaseD6")
+            self._stage, Sdf.Path("/World/allegro/AnchorToHandBaseD6")
         )
 
         self._articulation_root = self._stage.GetPrimAtPath("/World/allegro/allegro_mount")
@@ -769,13 +770,13 @@ class MyExtension(omni.ext.IExt):
             driveAPI.CreateTypeAttr("force")
             # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
-            driveAPI.CreateDampingAttr(1e4)
-            driveAPI.CreateStiffnessAttr(1e4)
+            driveAPI.CreateDampingAttr(self._damping_stiffness)
+            driveAPI.CreateStiffnessAttr(self._damping_stiffness)
 
         for rotDof in ["rotX", "rotY", "rotZ"]:
             driveAPI = UsdPhysics.DriveAPI.Apply(rootJointPrim, rotDof)
             driveAPI.CreateTypeAttr("force")
             # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
-            driveAPI.CreateDampingAttr(1e4)
-            driveAPI.CreateStiffnessAttr(1e4)
+            driveAPI.CreateDampingAttr(self._damping_stiffness)
+            driveAPI.CreateStiffnessAttr(self._damping_stiffness)
