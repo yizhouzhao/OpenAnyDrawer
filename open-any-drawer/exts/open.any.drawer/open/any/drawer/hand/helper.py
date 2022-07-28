@@ -33,7 +33,7 @@ class HandHelper():
         self._revolute_drive_damping =  0.2 * self._revolute_drive_stiffness
         self._spherical_drive_damping = 0.2 * self._spherical_drive_stiffness
         self._maxJointVelocity = 3.0 * radToDeg
-        self._jointFriction = 0  # 0.01
+        self._jointFriction = 0.01
         
         self._finger_mass = 0.1
         mHand = self._finger_mass * 20.0 + self._finger_mass + self._finger_mass
@@ -79,7 +79,7 @@ class HandHelper():
         self._tips_root_path = default_prim_path.AppendPath("Hand/Tips")
 
 
-        abspath = "E:/Transfer/hand1.usd"
+        abspath = "/home/yizhou/Desktop/hand1.usd"
         # "https://omniverse-content-staging.s3.us-west-2.amazonaws.com/DoNotDelete/PhysicsDemoAssets/103.1/DeformableHand/skeleton_hand_with_tips.usd"
         assert self.stage.DefinePrim(self._hand_prim_path).GetReferences().AddReference(abspath)
 
@@ -93,14 +93,14 @@ class HandHelper():
 
 
         # Physics scene
-        physicsScenePath = default_prim_path.AppendChild("physicsScene")
-        scene = UsdPhysics.Scene.Define(self.stage, physicsScenePath)
-        scene.CreateGravityDirectionAttr().Set(Gf.Vec3f(0.0, 0.0, -1.0))
-        scene.CreateGravityMagnitudeAttr().Set(9.81)
-        utils.set_physics_scene_asyncsimrender(scene.GetPrim())
-        physxAPI = PhysxSchema.PhysxSceneAPI.Apply(scene.GetPrim())
-        physxAPI.CreateSolverTypeAttr("TGS")
-        physxAPI.CreateGpuMaxNumPartitionsAttr(4)
+        # physicsScenePath = default_prim_path.AppendChild("physicsScene")
+        # scene = UsdPhysics.Scene.Define(self.stage, physicsScenePath)
+        # scene.CreateGravityDirectionAttr().Set(Gf.Vec3f(0.0, 0.0, -1.0))
+        # scene.CreateGravityMagnitudeAttr().Set(9.81)
+        # utils.set_physics_scene_asyncsimrender(scene.GetPrim())
+        # physxAPI = PhysxSchema.PhysxSceneAPI.Apply(scene.GetPrim())
+        # physxAPI.CreateSolverTypeAttr("TGS")
+        # physxAPI.CreateGpuMaxNumPartitionsAttr(4)
 
     def _setup_geometry(self):
         boneNames = ["proximal", "middle", "distal"]
@@ -260,7 +260,13 @@ class HandHelper():
         self.tip_prim = self.stage.GetPrimAtPath("/World/Hand/Tips")
 
         # reset bone XForm and tip Xform
-        # mat = Gf.Matrix4d()
+        mat = Gf.Matrix4d()
+        omni.kit.commands.execute(
+                "TransformPrimCommand", 
+                path="/World/Hand/Bones",
+                new_transform_matrix=mat,
+            )
+
         # self.bone_prim.GetAttribute("xformOp:transform").Set(mat)
         # if self.tip_prim :
         #     self.tip_prim.GetAttribute("xformOp:transform").Set(mat)
@@ -382,8 +388,8 @@ class HandHelper():
         if jointType == "revolute":
             # for revolute create drive
             driveAPI = UsdPhysics.DriveAPI.Apply(joint.GetPrim(), "angular")
-            driveAPI.CreateTypeAttr("acceleration")
-            driveAPI.CreateMaxForceAttr(self._drive_max_force)
+            driveAPI.CreateTypeAttr("force")
+            # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateDampingAttr(self._revolute_drive_damping)
             driveAPI.CreateStiffnessAttr(self._revolute_drive_stiffness)
             dofIndex = len(self._drives)
@@ -412,8 +418,8 @@ class HandHelper():
             d6j.CreateLocalPos1Attr().Set(jointChildPosition)
             childPose = parentWorldToLocal * jointGeom.quat
             d6j.CreateLocalRot1Attr().Set(childPose)
-            d6j.CreateBreakForceAttr().Set(1e20)
-            d6j.CreateBreakTorqueAttr().Set(1e20)
+            # d6j.CreateBreakForceAttr().Set(1e20)
+            # d6j.CreateBreakTorqueAttr().Set(1e20)
 
             axes = [x for x in "XYZ" if jointGeom.axis != x]
             assert len(axes) == 2, "Error in spherical drives setup"
@@ -436,8 +442,8 @@ class HandHelper():
 
             for d in drives:
                 driveAPI = UsdPhysics.DriveAPI.Apply(d6j.GetPrim(), d)
-                driveAPI.CreateTypeAttr("acceleration")
-                driveAPI.CreateMaxForceAttr(self._drive_max_force)
+                driveAPI.CreateTypeAttr("force")
+                # driveAPI.CreateMaxForceAttr(self._drive_max_force)
                 driveAPI.CreateDampingAttr(self._spherical_drive_damping)
                 driveAPI.CreateStiffnessAttr(self._spherical_drive_stiffness)
                 dofIndex = len(self._drives)
@@ -508,7 +514,7 @@ class HandHelper():
         rootJointPrim = component.GetPrim()
         for dof in ["transX", "transY", "transZ"]:
             driveAPI = UsdPhysics.DriveAPI.Apply(rootJointPrim, dof)
-            driveAPI.CreateTypeAttr("acceleration")
+            driveAPI.CreateTypeAttr("force")
             # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
             driveAPI.CreateDampingAttr(1e4)
@@ -516,7 +522,7 @@ class HandHelper():
 
         for rotDof in ["rotX", "rotY", "rotZ"]:
             driveAPI = UsdPhysics.DriveAPI.Apply(rootJointPrim, rotDof)
-            driveAPI.CreateTypeAttr("acceleration")
+            driveAPI.CreateTypeAttr("force")
             # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
             driveAPI.CreateDampingAttr(1e4)
@@ -576,12 +582,12 @@ class HandHelper():
         # utils.setRigidBody(self.stage.GetPrimAtPath("/World/Hand"), approximationShape="convexHull", kinematic=False)
         # return 
         self._set_bone_mesh_to_rigid_body_and_config(self._baseMesh)
-        self._apply_mass(self._baseMesh, self._finger_mass) 
+        # self._apply_mass(self._baseMesh, self._finger_mass) 
         for _, finger in self._fingerMeshes.items():
             for _, bone in finger.items():
                 self._set_bone_mesh_to_rigid_body_and_config(bone)
                 self._setup_physics_material(bone.GetPrim().GetPath()) #! add physical material
-                self._apply_mass(bone, self._finger_mass) 
+                # self._apply_mass(bone, self._finger_mass) 
 
     ########################### soft body #################################################
 
