@@ -20,7 +20,7 @@ from pathlib import Path
 
 
 from numpy_utils import *
-from utils import get_bounding_box
+from .utils import get_bounding_box
 
 ROOT = str(Path(__file__).parent.joinpath("../../../../../../").resolve())
 

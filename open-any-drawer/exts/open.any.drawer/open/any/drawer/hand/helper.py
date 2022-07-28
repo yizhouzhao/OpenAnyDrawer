@@ -14,7 +14,7 @@ from .limiter import *
 class HandHelper():
     def __init__(self) -> None:
         self.stage  = omni.usd.get_context().get_stage()
-        self._scale = 0.01
+        self._scale = 1
         
         #########################################################
         ################### constants ###########################
@@ -63,10 +63,10 @@ class HandHelper():
         self._rig_hand()
 
         #! disable tips
-        tips_prim  = self.stage.GetPrimAtPath(self._tips_root_path.pathString)
-        tips_prim.SetActive(False)
+        # tips_prim  = self.stage.GetPrimAtPath(self._tips_root_path.pathString)
+        # tips_prim.SetActive(False)
 
-        # self._rig_D6_anchor()
+        self._rig_D6_anchor()
         # self._setup_skeleton_hand_db_tips(self.stage)
 
     def import_hand(self):
@@ -79,7 +79,8 @@ class HandHelper():
         self._tips_root_path = default_prim_path.AppendPath("Hand/Tips")
 
 
-        abspath = "https://omniverse-content-staging.s3.us-west-2.amazonaws.com/DoNotDelete/PhysicsDemoAssets/103.1/DeformableHand/skeleton_hand_with_tips.usd"
+        abspath = "E:/Transfer/hand1.usd"
+        # "https://omniverse-content-staging.s3.us-west-2.amazonaws.com/DoNotDelete/PhysicsDemoAssets/103.1/DeformableHand/skeleton_hand_with_tips.usd"
         assert self.stage.DefinePrim(self._hand_prim_path).GetReferences().AddReference(abspath)
 
         self._hand_prim = self.stage.GetPrimAtPath(self._hand_prim_path.pathString)
@@ -259,10 +260,10 @@ class HandHelper():
         self.tip_prim = self.stage.GetPrimAtPath("/World/Hand/Tips")
 
         # reset bone XForm and tip Xform
-        mat = Gf.Matrix4d()
-        self.bone_prim.GetAttribute("xformOp:transform").Set(mat)
-        if self.tip_prim :
-            self.tip_prim.GetAttribute("xformOp:transform").Set(mat)
+        # mat = Gf.Matrix4d()
+        # self.bone_prim.GetAttribute("xformOp:transform").Set(mat)
+        # if self.tip_prim :
+        #     self.tip_prim.GetAttribute("xformOp:transform").Set(mat)
 
         ropt_prim = self._baseMesh.GetPrim()
         UsdPhysics.ArticulationRootAPI.Apply(ropt_prim)
@@ -346,7 +347,7 @@ class HandHelper():
         # print("jointWorldPos", jointWorldPos, parentWorldPos)
         
         if jointGeom.posOffsetW is not None:
-            jointWorldPos += jointGeom.posOffsetW * self._scale
+            jointWorldPos += jointGeom.posOffsetW * 0.01
             # print("jointGeom.posOffsetW", jointGeom.posOffsetW)
         jointParentPosition = parentLocalToWorld.GetInverse().Transform(jointWorldPos)
         jointChildPosition = childLocalToWorld.GetInverse().Transform(jointWorldPos)
