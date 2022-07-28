@@ -35,7 +35,7 @@ class HandHelper():
         self._maxJointVelocity = 3.0 * radToDeg
         self._jointFriction = 0  # 0.01
         
-        self._finger_mass = 0.5
+        self._finger_mass = 0.1
         mHand = self._finger_mass * 20.0 + self._finger_mass + self._finger_mass
         dh = 0.05
         self._d6LinearSpring = mHand * 100 / dh

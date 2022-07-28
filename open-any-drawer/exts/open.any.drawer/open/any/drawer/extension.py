@@ -747,7 +747,8 @@ class MyExtension(omni.ext.IExt):
             self._stage, Sdf.Path("/World/allegro/AnchorToHandBaseD6")
         )
 
-        self._articulation_root = self._stage.GetPrimAtPath("/World/allegro/allegro_mount")
+        
+        self._articulation_root = self._stage.GetPrimAtPath("/World/Hand/Bones/l_carpal_mid") # /World/allegro/allegro_mount
         baseLocalToWorld = UsdGeom.Xformable(self._articulation_root).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
         jointPosition = baseLocalToWorld.GetInverse().Transform(xformLocalToWorldTrans)
         jointPose = Gf.Quatf(baseLocalToWorld.GetInverse().RemoveScaleShear().ExtractRotationQuat())
