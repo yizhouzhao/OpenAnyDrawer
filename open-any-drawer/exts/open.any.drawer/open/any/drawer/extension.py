@@ -62,6 +62,14 @@ class MyExtension(omni.ext.IExt):
         object_scale = self.object_scale_ui.model.get_value_as_float()
         self.env.add_object(object_id, scale = object_scale)
 
+        selection = omni.usd.get_context().get_selection()
+        selection.clear_selected_prim_paths()
+        selection.set_prim_path_selected("/World/game", True, True, True, True)
+
+        viewport = omni.kit.viewport_legacy.get_viewport_interface()
+        if viewport:
+            viewport.get_viewport_window().focus_on_selected()
+
     def on_shutdown(self):
         print("[open.any.drawer] MyExtension shutdown")
 
@@ -789,6 +797,6 @@ class MyExtension(omni.ext.IExt):
 
         from .task.instructor import SceneInstructor
 
-        self.si = SceneInstructor()
-        self.si.analysis_handle()
-        self.si.analysis_cabinet_type()
+        self.scene_instr = SceneInstructor()
+        self.scene_instr.analysis()
+        self.scene_instr.build_handle_desc_ui()
