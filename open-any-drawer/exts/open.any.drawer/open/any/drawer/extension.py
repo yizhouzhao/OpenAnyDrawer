@@ -48,6 +48,8 @@ class MyExtension(omni.ext.IExt):
                 ui.Button("Debug", clicked_fn= self.debug)
                 ui.Button("Debug2", clicked_fn= self.debug2)
                 ui.Button("Rig D6", clicked_fn= self.debug_rig_d6)
+                ui.Button("Test instructor", clicked_fn= self.debug_instructor)
+                
                 
 
     def add_ground(self):
@@ -781,3 +783,12 @@ class MyExtension(omni.ext.IExt):
             driveAPI.CreateTargetPositionAttr(0.0)
             driveAPI.CreateDampingAttr(self._damping_stiffness)
             driveAPI.CreateStiffnessAttr(self._damping_stiffness)
+
+    def debug_instructor(self):
+        print("debug instru")
+
+        from .task.instructor import SceneInstructor
+
+        self.si = SceneInstructor()
+        self.si.analysis_handle()
+        self.si.analysis_cabinet_type()
