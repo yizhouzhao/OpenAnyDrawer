@@ -40,7 +40,7 @@ class MyExtension(omni.ext.IExt):
                     self.object_id_ui.model.set_value(0)
                     ui.Label("object scale: ", width = 80)
                     self.object_scale_ui = omni.ui.FloatField(height=20, width = 40, style={ "margin": 2 })
-                    self.object_scale_ui.model.set_value(1.0)
+                    self.object_scale_ui.model.set_value(0.1)
                     ui.Button("Add Object", clicked_fn=self.add_object)
 
                 ui.Button("Add Ground", clicked_fn=self.add_ground)
@@ -800,3 +800,6 @@ class MyExtension(omni.ext.IExt):
         self.scene_instr = SceneInstructor()
         self.scene_instr.analysis()
         self.scene_instr.build_handle_desc_ui()
+        self.scene_instr.add_semantic_to_handle()
+
+        self.scene_instr.export_data()

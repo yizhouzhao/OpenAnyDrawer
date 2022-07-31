@@ -1,5 +1,5 @@
 # instructions as language
-
+import os
 import carb
 import omni
 from pxr import UsdPhysics, Gf, UsdGeom
@@ -8,6 +8,10 @@ from task.utils import *
 
 import omni.kit.viewport_widgets_manager as wm
 from omni import ui
+
+
+from omni.isaac.core.utils.semantics import add_update_semantics, remove_all_semantics
+import omni.replicator.core as rep
 
 CAMERA_WIDGET_STYLING = {
     "Rectangle::background": {"background_color": 0x7F808080, "border_radius": 5}
@@ -33,13 +37,22 @@ class SceneInstructor():
         self.short_handle_ratio = 1.5 # ratio to determin the small handle
         self.spatial_desc_tolerance = 0.05 # spatial description
 
+        # output path
+        self.output_path = "/home/yizhou/Research/temp"
+        self.reset()
+
+    def reset(self):
         # scene
         self.stage = omni.usd.get_context().get_stage()
 
         # knowledge
         self.handle_knowledge = {}
         self.joint_knowledge = {"PhysicsRevoluteJoint":[], "PhysicsPrismaticJoint":[], "PhysicsFixedJoint": []}
-    
+
+        # constant
+        self.scale = 0.1 # object scale
+        self.is_obj_valid = True # valid object scene
+
     ####################################################################################
     ############################ analysis ###############################################
     ####################################################################################
@@ -219,6 +232,7 @@ class SceneInstructor():
                      self.valid_handle_list[handle_path_str]["vertical_description"] = "top"
         else:
             carb.log_warn("too many handles align vertically!")
+            self.is_obj_valid = False
 
         # horizontal
         if len(h_centers) == 1:
@@ -254,6 +268,7 @@ class SceneInstructor():
                      self.valid_handle_list[handle_path_str]["horizontal_description"] = "left"
         else:
             carb.log_warn("too many handles align horizontally!")
+            self.is_obj_valid = False
 
     
         print("valid_handle_list: ", self.valid_handle_list)
@@ -299,3 +314,29 @@ class SceneInstructor():
             cabinet_type = self.valid_handle_list[handle_path_str]["cabinet_type"]
 
             self.build_ui([f"{cabinet_type}", "handle_" + handle_num, f"{v_desc}/{h_desc}"], gui_path, gui_location)
+
+    ######################################## semantic #####################################################
+    def add_semantic_to_handle(self):
+        for handle_path_str in self.valid_handle_list:
+            prim = self.stage.GetPrimAtPath(handle_path_str)
+            add_update_semantics(prim, "handle")
+
+    def export_data(self):
+        """
+        Export RGB and Bounding box info to file
+        """
+        with rep.new_layer():
+            camera = rep.create.camera(position=(-10 * self.scale, 0, 5 * self.scale), rotation=(90, 0, -90))
+            render_product = rep.create.render_product(camera, (256, 256))
+
+             # Initialize and attach writer
+            writer = rep.WriterRegistry.get("BasicWriter")
+            writer.initialize( output_dir=self.output_path, rgb=True, bounding_box_2d_tight=True)
+            writer.attach([render_product])
+
+            with rep.trigger.on_frame(num_frames=1):
+                pass
+
+            rep.orchestrator.run()
+            # rep.orchestrator.preview()
+
