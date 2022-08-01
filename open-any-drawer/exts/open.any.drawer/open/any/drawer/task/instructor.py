@@ -171,10 +171,16 @@ class SceneInstructor():
         """
         Analysis the spatial relationship of handle
         : joint_type  -> vertical -> horizontal
-        """
-
+        """        
+        print("analysis_spatial_rel: ", self.valid_handle_list)
+        if len(self.valid_handle_list) == 0:
+            carb.log_warn("No handle in the scene")
+            self.is_obj_valid = False
+            return
+        
         # if only one joint, no need to describe from spatial layout
-        if len(self.valid_handle_list) <= 1:
+        if len(self.valid_handle_list) == 0:
+            self.is_obj_valid = True
             return
 
         # get vertical and horizontal centers
@@ -237,7 +243,7 @@ class SceneInstructor():
         # horizontal
         if len(h_centers) == 1:
             pass
-        if len(h_centers) == 2:
+        elif len(h_centers) == 2:
             for handle_path_str in self.valid_handle_list:
                 handle_center = self.handle_knowledge[handle_path_str]["center"]
                 if abs(handle_center[1] - h_centers[0]) < self.spatial_desc_tolerance:
@@ -338,5 +344,7 @@ class SceneInstructor():
                 pass
 
             rep.orchestrator.run()
+            rep.BackendDispatch.wait_until_done()
             # rep.orchestrator.preview()
+            omni.kit.commands.execute("DeletePrims", paths=["/World/Game"])
 

@@ -49,6 +49,7 @@ class MyExtension(omni.ext.IExt):
                 ui.Button("Debug2", clicked_fn= self.debug2)
                 ui.Button("Rig D6", clicked_fn= self.debug_rig_d6)
                 ui.Button("Test instructor", clicked_fn= self.debug_instructor)
+                ui.Button("Batch generation", clicked_fn= self.debug_batch_gen)
                 
                 
 
@@ -803,3 +804,28 @@ class MyExtension(omni.ext.IExt):
         self.scene_instr.add_semantic_to_handle()
 
         self.scene_instr.export_data()
+
+    def debug_batch_gen(self):
+        print("debug_batch_gen")
+
+        from .task.instructor import SceneInstructor
+        import omni.replicator.core as rep
+
+        object_id = self.object_id_ui.model.set_value(6)
+        object_id = self.object_id_ui.model.get_value_as_int()
+        object_scale = self.object_scale_ui.model.get_value_as_float()
+        self.env.add_object(object_id, scale = object_scale)
+
+        self.scene_instr = SceneInstructor()
+        self.scene_instr.analysis()
+        # self.scene_instr.build_handle_desc_ui()
+        
+        print("scene_instr.is_obj_valid: ", self.scene_instr.is_obj_valid)
+        if self.scene_instr.is_obj_valid:
+            self.scene_instr.add_semantic_to_handle()
+            self.scene_instr.output_path = f"/home/yizhou/Research/temp/{object_id}"
+            self.scene_instr.export_data()
+        
+        
+        # print("print(rep.orchestrator.get_is_started())", rep.orchestrator.get_is_started())
+        
