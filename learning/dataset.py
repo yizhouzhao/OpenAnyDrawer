@@ -8,6 +8,9 @@ from torch.utils.data import DataLoader, Dataset
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
 
+
+from tqdm.auto import tqdm
+
 # Albumentations
 def get_train_transform():
     return A.Compose([
@@ -28,35 +31,37 @@ def collate_fn(batch):
     
 class HandleDataset(Dataset):
 
-    def __init__(self, image_dir, transforms=None):
+    def __init__(self, image_dir, num_frames = 5, transforms=None):
         super().__init__()
 
         self.image_dir = image_dir
+        self.num_frames = num_frames # randomized frames in rendering
         self.transforms = transforms
 
         self.get_img_ids()
 
     def get_img_ids(self):
         self.image_ids = []
-        for image_id in os.listdir(self.image_dir):
-            boxes_np = np.load(f'{self.image_dir}/{image_id}/bounding_box_2d_tight_0.npy')
-            
-            if boxes_np.shape[0] > 0:
-                boxes = np.array([ list(e) for e in boxes_np])
-                boxes = boxes[...,1:] # 0 is the class index
+        for image_id in tqdm(os.listdir(self.image_dir)):
+            for i in range(self.num_frames):
+                boxes_np = np.load(f'{self.image_dir}/{image_id}/bounding_box_2d_tight_{i}.npy')
+                
+                if boxes_np.shape[0] > 0:
+                    boxes = np.array([ list(e) for e in boxes_np])
+                    boxes = boxes[...,1:] # 0 is the class index
 
-                boxes[:, 2:] += 1 # make max a little large
+                    boxes[:, 2:] += 1 # make max a little large
 
-                self.image_ids.append([image_id, boxes])
+                    self.image_ids.append([image_id, boxes, i])
 
     def __len__(self):
         return len(self.image_ids)
 
     def __getitem__(self, index: int):
 
-        image_id, boxes = self.image_ids[index]
+        image_id, boxes, frame = self.image_ids[index]
 
-        image = cv2.imread(f'{self.image_dir}/{image_id}/rgb_0.png', cv2.IMREAD_COLOR)
+        image = cv2.imread(f'{self.image_dir}/{image_id}/rgb_{frame}.png', cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
         image /= 255.0
 
@@ -64,10 +69,10 @@ class HandleDataset(Dataset):
         area = torch.as_tensor(area, dtype=torch.float32)
 
         # there is only one class
-        labels = torch.ones((len(boxes),), dtype=torch.int)
+        labels = torch.ones((len(boxes),), dtype=torch.int64)
         
         # suppose all instances are not crowd
-        iscrowd = torch.zeros((len(boxes),), dtype=torch.int)
+        iscrowd = torch.zeros((len(boxes),), dtype=torch.int64)
         
         target = {}
         target['boxes'] = boxes
