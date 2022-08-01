@@ -179,7 +179,7 @@ class SceneInstructor():
             return
         
         # if only one joint, no need to describe from spatial layout
-        if len(self.valid_handle_list) == 0:
+        if len(self.valid_handle_list) == 1:
             self.is_obj_valid = True
             return
 
@@ -277,8 +277,8 @@ class SceneInstructor():
             self.is_obj_valid = False
 
     
-        print("valid_handle_list: ", self.valid_handle_list)
-        print("knowledge", self.handle_knowledge)
+        # print("valid_handle_list: ", self.valid_handle_list)
+        # print("knowledge", self.handle_knowledge)
                 
 
     def get_handle_type_from_scale(self, scale):
