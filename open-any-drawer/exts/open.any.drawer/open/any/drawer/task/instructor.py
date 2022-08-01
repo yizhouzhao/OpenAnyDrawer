@@ -346,5 +346,5 @@ class SceneInstructor():
             rep.orchestrator.run()
             rep.BackendDispatch.wait_until_done()
             # rep.orchestrator.preview()
-            omni.kit.commands.execute("DeletePrims", paths=["/World/Game"])
+            # omni.kit.commands.execute("DeletePrims", paths=["/World/Game"])
 

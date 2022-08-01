@@ -823,7 +823,7 @@ class MyExtension(omni.ext.IExt):
         print("scene_instr.is_obj_valid: ", self.scene_instr.is_obj_valid)
         if self.scene_instr.is_obj_valid:
             self.scene_instr.add_semantic_to_handle()
-            self.scene_instr.output_path = f"/home/yizhou/Research/temp/{object_id}"
+            self.scene_instr.output_path = f"/home/yizhou/Research/temp0/{object_id}"
             self.scene_instr.export_data()
         
         

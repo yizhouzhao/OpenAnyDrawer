@@ -16,7 +16,8 @@ import os
 import carb
 
 # Set rendering parameters and create an instance of kit
-CONFIG = {"renderer": "RayTracedLighting", "headless": True, "width": 256, "height": 256, "num_frames": 10}
+CONFIG = {"renderer": "RayTracedLighting", "headless": True, 
+    "width": 256, "height": 256, "num_frames": 5}
 
 kit = SimulationApp(launch_config=CONFIG)
 
@@ -50,7 +51,7 @@ def run_orchestrator():
     rep.BackendDispatch.wait_until_done()
 
 
-for i in range(10, 200):
+for i in range(0, 200):
     env.add_object(i, scale = 0.1)
     game_obj = XFormPrim("/World/Game")
     game_obj_name = game_obj.name
@@ -70,8 +71,12 @@ for i in range(10, 200):
             writer.initialize( output_dir=os.path.join(scene_instr.output_path, f"{i}"), rgb=True, bounding_box_2d_tight=True)
             writer.attach([render_product])
 
-            with rep.trigger.on_frame(num_frames=1):
-                pass
+            with rep.trigger.on_frame(num_frames=CONFIG["num_frames"]):
+                with camera:
+                    rep.modify.pose(
+                        position=rep.distribution.uniform((-1.5, -0.2, 0.5), (-1, 0.2, 0.5)),
+                        rotation=(90, 0, -90),
+                    )
         
     
             run_orchestrator()
