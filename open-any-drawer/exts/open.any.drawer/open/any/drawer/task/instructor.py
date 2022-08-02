@@ -132,17 +132,18 @@ class SceneInstructor():
             joint = UsdPhysics.Joint.Get(self.stage, prim.GetPath())
             assert joint, f"Not a joint? Check model {prim.GetPath().pathString}"
             b1paths = joint.GetBody1Rel().GetTargets()
-            print("b1paths", prim.GetTypeName(), b1paths)
-            self.joint_knowledge[prim.GetTypeName()].append(b1paths[0].pathString)
+            # print("b1paths", prim.GetTypeName(), b1paths)
+            self.joint_knowledge[prim.GetTypeName()].append([b1paths[0].pathString, prim.GetPath().pathString])
 
         # update joint type
         for handle_path_str in self.handle_knowledge:
             handle_know = self.handle_knowledge[handle_path_str]
 
             for joint_type in self.joint_knowledge:
-                for joint_path_str in self.joint_knowledge[joint_type]:
-                    if joint_path_str in handle_path_str:
+                for joint_body_path_str, joint_prim_path_str in self.joint_knowledge[joint_type]:
+                    if joint_body_path_str in handle_path_str:
                         handle_know["joint_type"] = joint_type
+                        handle_know["joint_path_str"] = joint_prim_path_str
                         break
         
         # get revolute/linear handles

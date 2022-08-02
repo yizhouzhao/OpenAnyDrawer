@@ -45,12 +45,17 @@ class MyExtension(omni.ext.IExt):
 
                 ui.Button("Add Ground", clicked_fn=self.add_ground)
 
-                ui.Button("Debug", clicked_fn= self.debug)
-                ui.Button("Debug2", clicked_fn= self.debug2)
-                ui.Button("Rig D6", clicked_fn= self.debug_rig_d6)
-                ui.Button("Test instructor", clicked_fn= self.debug_instructor)
-                ui.Button("Batch generation", clicked_fn= self.debug_batch_gen)
+                with ui.HStack(height = 20):
+                    ui.Button("Add hand from copying", clicked_fn= self.debug)
+                    ui.Button("Add hand from helper", clicked_fn= self.debug2)
+                    ui.Button("Rig D6", clicked_fn= self.debug_rig_d6)
+
+                with ui.HStack(height = 20):
+                    ui.Button("Test instructor", clicked_fn= self.debug_instructor)
+                    ui.Button("Batch generation", clicked_fn= self.debug_batch_gen)
                 
+                with ui.HStack(height = 20):
+                    ui.Button("Test task checker", clicked_fn= self.debug_task_checker)
                 
 
     def add_ground(self):
@@ -796,7 +801,7 @@ class MyExtension(omni.ext.IExt):
     def debug_instructor(self):
         print("debug instru")
 
-        from .task.instructor import SceneInstructor
+        from task.instructor import SceneInstructor
 
         self.scene_instr = SceneInstructor()
         self.scene_instr.analysis()
@@ -829,3 +834,20 @@ class MyExtension(omni.ext.IExt):
         
         # print("print(rep.orchestrator.get_is_started())", rep.orchestrator.get_is_started())
         
+    ############ task check
+
+    def debug_task_checker(self):
+        print("debug_task_checker")
+        from task.checker import TaskChecker
+        from task.instructor import SceneInstructor
+
+        self.env.add_robot()
+        object_id = self.object_id_ui.model.get_value_as_int()
+        object_scale = self.object_scale_ui.model.get_value_as_float()
+        self.env.add_object(object_id, scale = object_scale)
+
+        self.scene_instr = SceneInstructor()
+        self.scene_instr.analysis()
+        self.scene_instr.build_handle_desc_ui()
+
+        # self.task_checker = TaskChecker("mobility", "joint_0", "PhysicsRevoluteJoint")
