@@ -58,9 +58,17 @@ class SceneInstructor():
     ####################################################################################
 
     def analysis(self):
+        self.analysis_game()
         self.analysis_handle_primary()
         self.analysis_cabinet_type()
         self.analysis_spatial_rel()
+    
+    def analysis_game(self):
+        """
+        Analysis global game information
+        """
+        bboxes = get_bounding_box("/World/Game/mobility")
+        self.game_center = 0.5 * (bboxes[0] + bboxes[1])
 
     def analysis_handle_primary(self):
         """
@@ -84,10 +92,12 @@ class SceneInstructor():
 
             size_type = self.get_handle_type_from_scale(scale)
             direction = "horizontal" if scale[1] > scale[2] else "vertical"
+            relative_to_game_center = "left" if center[1] >= self.game_center[1] else "right"
 
             self.handle_knowledge[prim_path_str] = {
                 "num": handle_num,
                 "center": center,
+                "relative_to_game_center": relative_to_game_center,
                 "bboxes": bboxes,
                 "scale": scale,
                 "size": size,
@@ -166,6 +176,7 @@ class SceneInstructor():
                         "vertical_description": "",
                         "horizontal_description": "",
                     }
+                
         
 
     def analysis_spatial_rel(self):

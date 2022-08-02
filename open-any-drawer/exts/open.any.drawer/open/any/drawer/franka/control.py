@@ -17,15 +17,14 @@ from omni.isaac.core.robots.robot_view import RobotView
 
 import numpy as np
 from pathlib import Path
-from PIL import Image
+
 
 from numpy_utils import *
-from utils import get_bounding_box
-
+from utils import get_mesh_bboxes
 
 ROOT = str(Path(__file__).parent.joinpath("../../../../../../").resolve())
 
-class OpenEnv():
+class FrankaControl():
     
     def __init__(self,  
         prim_paths_expr="",
@@ -37,80 +36,6 @@ class OpenEnv():
         self.prim_paths_expr = prim_paths_expr
         self.backend = backend
         self.device = device
-
-    def add_robot(self):
-        print("add robot")
-
-        self.stage = omni.usd.get_context().get_stage()
-
-        self.game_path_str = "/World/Game"
-        xform_game = self.stage.GetPrimAtPath(self.game_path_str)
-        if not xform_game:
-            xform_game = pxr.UsdGeom.Xform.Define(self.stage, self.game_path_str)
-        
-        set_stage_up_axis("z")
-
-        # import robot
-        self.robot = Franka("/World/Game/Franka")
-
-    def add_object(self, obj_idx = 0, x_offset = 6, scale = 1):
-        from utils import get_bounding_box, add_physical_material_to, fix_linear_joint
-
-        print("add object")
-        self.stage = omni.usd.get_context().get_stage()
-
-        self.game_path_str = "/World/Game"
-        xform_game = self.stage.GetPrimAtPath(self.game_path_str)
-        if not xform_game:
-            xform_game = pxr.UsdGeom.Xform.Define(self.stage, self.game_path_str)
-
-        # move obj to the correct place
-        mobility_prim_path = xform_game.GetPath().pathString + "/mobility"
-        prim = self.stage.GetPrimAtPath(mobility_prim_path)
-        if not prim.IsValid():
-            prim = self.stage.DefinePrim(mobility_prim_path)
-        
-        # loading asset from Omniverse Nucleus or local
-        try:
-            asset_root = "omniverse://localhost/Users/yizhou"
-            r = omni.client.list(os.path.join(asset_root, "Asset/Sapien/StorageFurniture/"))
-            print("omni client", r[0], [e.relative_path for e in r[1]])
-            object_ids = sorted([e.relative_path for e in r[1]])
-        except:
-            asset_root = ROOT
-            object_ids = sorted(os.listdir(os.path.join(asset_root, "Asset/Sapien/StorageFurniture/")))
-        
-        obj_usd_path = os.path.join(asset_root, f"Asset/Sapien/StorageFurniture/{object_ids[obj_idx]}/mobility.usd")
-        success_bool = prim.GetReferences().AddReference(obj_usd_path)
-        assert success_bool, f"Import error at usd {obj_usd_path}"
-
-        
-        xform = pxr.Gf.Matrix4d().SetRotate(pxr.Gf.Quatf(1.0,0.0,0.0,0.0)) * \
-            pxr.Gf.Matrix4d().SetTranslate([0,0,0]) * \
-                pxr.Gf.Matrix4d().SetScale([7.0 * scale,7.0 *scale,7.0 * scale])
-        
-        omni.kit.commands.execute(
-                "TransformPrimCommand", 
-                path=mobility_prim_path,
-                new_transform_matrix=xform,
-            )
-
-        # get obj bounding box
-        bboxes = get_bounding_box(mobility_prim_path)
-        position = [-bboxes[0][0] + x_offset * scale, 0, -bboxes[0][2]]
-        xform.SetTranslateOnly(position)
-
-        omni.kit.commands.execute(
-                "TransformPrimCommand", 
-                path=mobility_prim_path,
-                new_transform_matrix=xform,
-            )
-
-        # add physical meterial to
-        add_physical_material_to("handle_")
-        
-        # fix linear joint
-        fix_linear_joint()
 
     def start(self): 
         # simulation context
@@ -172,23 +97,11 @@ class OpenEnv():
     # -------------------------------------- Calculation --------------------------------------------#
     ##################################################################################################
 
-    def get_mesh_bboxes(self, keyword: str):
-        stage = omni.usd.get_context().get_stage()
-        prim_list = list(stage.TraverseAll())
-        prim_list = [ item for item in prim_list if keyword in item.GetPath().pathString and item.GetTypeName() == 'Mesh' ]
-
-        bboxes_list  = []
-        for prim in prim_list:
-            bboxes = get_bounding_box(prim.GetPath().pathString)
-            bboxes_list.append(bboxes)
-
-        return bboxes_list
-
     def calculate_grasp_location(self, keyword = "handle_", verticle = True, x_offset = 0.086):
         """
         Calculate the grasp location for the handle
         """
-        bboxes_list = self.get_mesh_bboxes(keyword) 
+        bboxes_list = get_mesh_bboxes(keyword) 
 
         assert len(bboxes_list) == self.num_envs, "more than one handle!"
 
@@ -226,33 +139,91 @@ class OpenEnv():
 
 
     ##################################################################################################
-    # -------------------------------------- Render ------------------------------------------------#
+    # -------------------------------------- Control ------------------------------------------------#
     ##################################################################################################
 
-    def setup_viewport(self, resolution = [256, 256]):
-        viewport = omni.kit.viewport_legacy.get_viewport_interface()
-        viewport_handle = viewport.get_instance("Viewport")
-        self.viewport_window = viewport.get_viewport_window(viewport_handle)
-
-        self.viewport_window.set_texture_resolution(*resolution)
-        self.viewport_window.set_active_camera("/OmniverseKit_Persp")
-
-        from omni.isaac.synthetic_utils import SyntheticDataHelper
-
-        self.sd_helper = SyntheticDataHelper()
-        self.sd_helper.initialize(sensor_names=["rgb",'depthLinear'], viewport=self.viewport_window)
-
-    def get_image(self, world = None):
-        
-        if world:
-            world.render()
-
-        gt = self.sd_helper.get_groundtruth(
-            ["rgb", "depthLinear"], self.viewport_window, verify_sensor_init=False, wait_for_sensor_data= 0
-        )
-
-        return Image.fromarray(gt['rgb'])
+    def move_hand_to_fast(self, target_pos, target_rot, world, open_gripper = True, max_step = 300):
+        """
+        Quickly move the robot hands to the target position and rotation
+        """
+        for i in range(max_step):
+            world.step(render=True)
     
+            # get end effector transforms
+            hand_pos, hand_rot = self.xforms.get_world_poses()
+            hand_rot = hand_rot[:,[1,2,3,0]] # WXYZ -> XYZW
+            
+            orient_error = quat_mul(target_rot[0], quat_conjugate(hand_rot[0]))
+            # print("orient_error", orient_error)
+            if abs(orient_error[3] - 1) < 0.02 and \
+                np.sqrt(orient_error[0]**2 + orient_error[1]**2 + orient_error[2]**2) < 0.02 and \
+                np.sqrt(np.sum((target_pos[0] - hand_pos[0])**2)) < 0.01:
+                print("Done rotation, position", hand_pos, hand_rot)
+                return 
+
+            u = self.move_to_target(target_pos, target_rot)
+            u[:,[-2, -1]] = 0.05 if open_gripper else 0
+            self.robots.set_joint_position_targets(u)
+        
+        print("Not Done rotation, position", hand_pos, hand_rot)
+
+    def move_hand_to_slow(self, target_pos, target_rot, world, open_gripper = True, step = 60):
+        """
+        Continuously and slowly move robot hands to the target position and rotation
+        target_pos, target_rot: [x,y,z], [x, y, z, w]
+        """
+        hand_pos, hand_rot = self.xforms.get_world_poses() # [x,y,z], [w, x, y, z]
+        hand_rot = hand_rot[:,[1,2,3,0]] # WXYZ -> XYZW
+
+        inter_pos, inter_rot = np.zeros_like(hand_pos), np.zeros_like(hand_rot)
+        start_pos, start_rot = [], []
+        target_pos_gf, target_rot_gf = [], []
+        
+        # init
+        for i in range(self.num_envs):
+            start_pos.append(Gf.Vec3f(float(hand_pos[i][0]), float(hand_pos[i][1]), float(hand_pos[i][2])))
+            start_rot.append(Gf.Quatf(float(hand_rot[i][3]),float(hand_rot[i][0]),float(hand_rot[i][1]),float(hand_rot[i][2])))
+
+            target_pos_gf.append(Gf.Vec3f(float(target_pos[i][0]), float(target_pos[i][1]), float(target_pos[i][2])))
+            target_rot_gf.append(Gf.Quatf(float(target_rot[i][3]),float(target_rot[i][0]),float(target_rot[i][1]),float(target_rot[i][2])))
+
+        # gripper 
+        dof_pos = self.robots.get_joint_positions()
+        init_gripper_close = dof_pos[...,-1][0] <= 0.015
+
+        # step
+        for t in range(step):
+            world.step(render=True)
+
+            for i in range(self.num_envs):
+                inter_pos_i = Gf.Lerp(t / (step - 1), start_pos[i], target_pos_gf[i])
+                inter_pos[i] = [inter_pos_i[0], inter_pos_i[1], inter_pos_i[2]]
+
+                inter_rot_i = Gf.Slerp(t / (step - 1), start_rot[i], target_rot_gf[i])
+                inter_rot_i_imaginary = inter_rot_i.GetImaginary()
+                inter_rot[i] = [inter_rot_i_imaginary[0], inter_rot_i_imaginary[1], inter_rot_i_imaginary[2], inter_rot_i.GetReal()]
+            
+            u = self.move_to_target(inter_pos, inter_rot)
+            if init_gripper_close and not open_gripper:
+                gripper_target = -0.5
+            else:
+                gripper_target = 0.5 if open_gripper else 0.5 - (0.5 - -0.5) / (step - 1) * t
+            # print("gripper_target", gripper_target)
+            u[:,[-2, -1]] = gripper_target
+            self.robots.set_joint_position_targets(u)
+
+        # final adjustment
+        for t in range(step // 10):
+            world.step(render=True)
+
+            u = self.move_to_target(target_pos, target_rot)
+            u[:,[-2, -1]] = 0.5 if open_gripper else -0.5
+            self.robots.set_joint_position_targets(u)
+
+        world.step(render=True)
+    
+
+
 
 
 
