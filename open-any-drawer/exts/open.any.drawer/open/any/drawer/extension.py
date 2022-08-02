@@ -34,7 +34,8 @@ class MyExtension(omni.ext.IExt):
         self._window = ui.Window("Open any drawer", width=300, height=300)
         with self._window.frame:
             with ui.VStack():
-                ui.Button("Add Franka Robot", clicked_fn= self.env.add_robot)
+                with ui.HStack(height = 20):
+                    ui.Button("Add Franka Robot", clicked_fn= self.env.add_robot)
 
                 with ui.HStack(height = 20):
                     ui.Label("object index: ", width = 80)
@@ -58,6 +59,9 @@ class MyExtension(omni.ext.IExt):
                 
                 with ui.HStack(height = 20):
                     ui.Button("Test task checker", clicked_fn= self.debug_task_checker)
+                
+                with ui.HStack(height = 20):
+                    ui.Button("Test Load FastRCNN", clicked_fn= self.debug_load_model)
                 
 
     def add_ground(self):
@@ -744,10 +748,10 @@ class MyExtension(omni.ext.IExt):
 
     def debug_rig_d6(self):
         self._stage = omni.usd.get_context().get_stage()
-        self._damping_stiffness = 1e4
+        self._damping_stiffness = 1e5
         # create anchor:
         self._anchorXform = UsdGeom.Xform.Define(
-            self._stage, Sdf.Path("/World/allegro/AnchorXform")
+            self._stage, Sdf.Path("/World/AnchorXform") # allegro/
         )
         # these are global coords because world is the xform's parent
         xformLocalToWorldTrans = Gf.Vec3f(0)
@@ -762,11 +766,11 @@ class MyExtension(omni.ext.IExt):
 
         # setup joint to floating hand base
         component = UsdPhysics.Joint.Define(
-            self._stage, Sdf.Path("/World/allegro/AnchorToHandBaseD6")
+            self._stage, Sdf.Path("/World/AnchorToHandBaseD6") # allegro/
         )
 
         
-        self._articulation_root = self._stage.GetPrimAtPath("/World/Hand/Bones/l_carpal_mid") # /World/allegro/allegro_mount
+        self._articulation_root = self._stage.GetPrimAtPath("/World/allegro/allegro_mount")  # "/World/Hand/Bones/l_carpal_mid"
         baseLocalToWorld = UsdGeom.Xformable(self._articulation_root).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
         jointPosition = baseLocalToWorld.GetInverse().Transform(xformLocalToWorldTrans)
         jointPose = Gf.Quatf(baseLocalToWorld.GetInverse().RemoveScaleShear().ExtractRotationQuat())
@@ -818,14 +822,14 @@ class MyExtension(omni.ext.IExt):
         from .task.instructor import SceneInstructor
         import omni.replicator.core as rep
 
-        object_id = self.object_id_ui.model.set_value(6)
+        object_id = self.object_id_ui.model.set_value(3)
         object_id = self.object_id_ui.model.get_value_as_int()
         object_scale = self.object_scale_ui.model.get_value_as_float()
         self.env.add_object(object_id, scale = object_scale)
 
         self.scene_instr = SceneInstructor()
         self.scene_instr.analysis()
-        # self.scene_instr.build_handle_desc_ui()
+        self.scene_instr.build_handle_desc_ui()
         
         print("scene_instr.is_obj_valid: ", self.scene_instr.is_obj_valid)
         if self.scene_instr.is_obj_valid:
@@ -836,7 +840,7 @@ class MyExtension(omni.ext.IExt):
         
         # print("print(rep.orchestrator.get_is_started())", rep.orchestrator.get_is_started())
         
-    ############ task check
+    ############ task check #####################################################################
 
     def debug_task_checker(self):
         print("debug_task_checker")
@@ -853,3 +857,10 @@ class MyExtension(omni.ext.IExt):
         self.scene_instr.build_handle_desc_ui()
 
         # self.task_checker = TaskChecker("mobility", "joint_0", "PhysicsRevoluteJoint")
+
+    ############ deep learning #####################################################################
+
+    def debug_load_model(self):
+        print("load_model")
+        from exp.model import load_model
+        model = load_model()

@@ -26,8 +26,14 @@ usd_path = f"omniverse://localhost/Users/{user}/scene0.usd"
 simulation_app = SimulationApp({"headless": True, "open_usd": usd_path,  "livesync_usd": usd_path}) 
 
 # world
+import omni
 from omni.isaac.core import World
 world = World()
+
+# reset scene
+mobility_prim = world.scene.stage.GetPrimAtPath("/World/Game/mobility")
+if mobility_prim:
+    omni.kit.commands.execute("DeletePrims", paths=["/World/Game/mobility"])
 
 # custom import
 from open_env import OpenEnv
@@ -45,13 +51,15 @@ world.reset()
 controller.start()
 world.scene.add(controller.robots)
 
+
 # show image
 if SHOW_IMAGE:
     env.get_image().show()
 
 # Add object
 # TODO: iterate obj index
-for OBJ_INDEX in OBJ_INDEX_LIST[:20]:
+for OBJ_INDEX in OBJ_INDEX_LIST[OBJ_INDEX_LIST.index("58"):]:
+    OBJ_INDEX = int(OBJ_INDEX)
     env.add_object(OBJ_INDEX, scale = 0.1)
     
     mobility_obj = XFormPrim("/World/Game/mobility")

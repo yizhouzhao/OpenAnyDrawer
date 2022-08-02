@@ -223,8 +223,37 @@ class FrankaControl():
         world.step(render=True)
     
 
+    ############################### SLAM #########################################################
+    
 
+    def calculate_grasp_location_from_bbox(self, box, 
+           resolution = 256, D = -193, camera_pos = [-1, 0, 0.5], handle_x = 0.61857):
+        """
+        Calculate the grasp location for the handle
 
+        box: [x_min, y_min, x_max, y_max] 2D boudning box in camera
+        resolution: camera resolution
+        D: depth of field
+        camera_pos: camera_position
+        handle_x: object offset
+
+        """
+        delta_w = (box[0] + box[2]) / 2 - resolution / 2
+        delta_h = (box[1] + box[3]) / 2 - resolution / 2
+
+        handle_z = (handle_x - camera_pos[0]) * delta_h / D + camera_pos[2]
+        handle_y = (handle_x - camera_pos[0]) * delta_w / D + camera_pos[1]
+
+        graps_pos = np.array([[handle_x, handle_y, handle_z]], dtype=np.float32)
+        verticle = delta_w < delta_h
+
+        base_rotation = [0.5, 0.5, 0.5, 0.5] if verticle else [0, 0.70711, 0, 0.70711]
+        grasp_rot = np.array([base_rotation], dtype=np.float32).repeat(self.num_envs, axis = 0) # XYZW
+        
+        # rotation: 0, 0.70711, 0, 0.70711; 0, 90, 0
+        # rotation:[0.5, 0.5, 0.5, 0.5]
+
+        return graps_pos, grasp_rot 
 
 
 
