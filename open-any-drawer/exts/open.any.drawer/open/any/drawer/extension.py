@@ -3,9 +3,11 @@ import omni.ui as ui
 
 from .open_env import OpenEnv
 
+# NOTE:
 # go to directory: open-any-drawer/exts/open.any.drawer/open/any/drawer/
 #  # start notebook from: /home/yizhou/.local/share/ov/pkg/isaac_sim-2022.1.0/jupyter_notebook.sh
 #  start python: /home/yizhou/.local/share/ov/pkg/isaac_sim-2022.1.0/python.sh
+# next paper about body language
 
 # hand helper
 import carb

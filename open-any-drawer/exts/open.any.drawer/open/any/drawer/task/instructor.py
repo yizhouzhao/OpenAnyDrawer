@@ -177,7 +177,12 @@ class SceneInstructor():
                         "horizontal_description": "",
                     }
                 
-        
+                # other import information
+                self.valid_handle_list[handle_path_str]["joint"] = self.handle_knowledge[handle_path_str]["joint_path_str"].split("/")[-1]
+                self.valid_handle_list[handle_path_str]["relative_to_game_center"]  = self.handle_knowledge[handle_path_str]["relative_to_game_center"]
+                self.valid_handle_list[handle_path_str]["direction"]  = self.handle_knowledge[handle_path_str]["direction"]
+                
+
 
     def analysis_spatial_rel(self):
         """

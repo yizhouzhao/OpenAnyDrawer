@@ -74,7 +74,7 @@ class OpenEnv():
         try:
             asset_root = "omniverse://localhost/Users/yizhou"
             r = omni.client.list(os.path.join(asset_root, "Asset/Sapien/StorageFurniture/"))
-            print("omni client", r[0], [e.relative_path for e in r[1]])
+            # print("omni client", r[0], [e.relative_path for e in r[1]])
             object_ids = sorted([e.relative_path for e in r[1]])
         except:
             asset_root = ROOT
