@@ -51,7 +51,7 @@ class HandEnv():
 
         self.xforms = XFormPrimView(self.xform_paths_expr)
 
-    def calculate_grasp_location(keyword = "handle_", verticle = True, x_offset = 0.086):
+    def calculate_grasp_location(self, keyword = "handle_", verticle = True, x_offset = 0.1):
         """
         Calculate the grasp location for the handle
         """
@@ -63,11 +63,14 @@ class HandEnv():
         min_x = bboxes_list[0][0][0] # 
         center_list = [(e[1] + e[0]) / 2 for e in bboxes_list] # box center
 
-        grasp_list = [[min_x - x_offset, c[1], c[2]] for c in center_list]
-
+        if verticle:
+            grasp_list = [[min_x - x_offset, c[1], c[2] - 0.12] for c in center_list] 
+        else:
+            grasp_list = [[min_x - x_offset, c[1] + 0.12, c[2]] for c in center_list] 
+ 
         graps_pos = np.array(grasp_list, dtype=np.float32)
         
-        base_rotation = [0.5, 0.5, 0.5, 0.5] if verticle else [0, 0.70711, 0, 0.70711]
+        base_rotation = [0.38268, 0, 0, 0.92388] if verticle else [0.3036, 0.23296, -0.56242, 0.73296]
         grasp_rot = np.array([base_rotation], dtype=np.float32)# XYZW
         
         # rotation: 0, 0.70711, 0, 0.70711; 0, 90, 0
