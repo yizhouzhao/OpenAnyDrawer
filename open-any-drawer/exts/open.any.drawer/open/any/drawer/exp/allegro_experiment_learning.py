@@ -14,7 +14,7 @@ OBJ_INDEX_LIST = ['0', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13'
 SUCESS_PERCENTAGE = 20
 result_file_path = "/home/yizhou/Research/Data/allegro_exp_learning.txt"
 MODEL_PATH = "/home/yizhou/Research/temp0/fasterrcnn_resnet50_fpn.pth"
-SHOW_IMAGE = True
+SHOW_IMAGE = False
 
 
 import getpass
@@ -51,6 +51,7 @@ from task.instructor import SceneInstructor
 from omni.isaac.core.prims.xform_prim import XFormPrim
 
 env = OpenEnv()
+env.add_camera()
 env.setup_viewport()
 
 # env = HandEnv("/World/Hand/Bones/l_carpal_mid", "/World/Hand*/Bones/l_thumbSkeleton_grp/l_distalThumb_mid")
@@ -61,6 +62,10 @@ world.reset()
 controller.start()
 world.scene.add(controller.robots)
 
+# hide robot
+hand_prim = world.scene.stage.GetPrimAtPath("/World/allegro")
+hand_prim.GetAttribute('visibility').Set('invisible')
+
 if SHOW_IMAGE:
     world.render()
     env.get_image()
@@ -70,7 +75,7 @@ from exp.model import load_vision_model
 model = load_vision_model(model_path = MODEL_PATH, model_name = "fasterrcnn_resnet50_fpn")
 
 # iterate object index
-for OBJ_INDEX in OBJ_INDEX_LIST[1:5]:
+for OBJ_INDEX in OBJ_INDEX_LIST:
     OBJ_INDEX = int(OBJ_INDEX)
 
     # wrong index
@@ -90,11 +95,14 @@ for OBJ_INDEX in OBJ_INDEX_LIST[1:5]:
     scene_instr.analysis()
 
     # export data and load model
-    scene_instr.output_path = "/home/yizhou/Research/temp0/"
-    scene_instr.export_data()
-    omni.kit.commands.execute("DeletePrims", paths=["/Replicator"])
+    # scene_instr.output_path = "/home/yizhou/Research/temp0/"
+    # scene_instr.export_data()
+    # omni.kit.commands.execute("DeletePrims", paths=["/Replicator"])
+    world.render()
+    image_array =env.get_image(return_array=True)
+
     scene_instr.model = model
-    scene_instr.predict_bounding_boxes(image_path="/home/yizhou/Research/temp0/rgb_0.png")
+    scene_instr.predict_bounding_boxes(image_array[:,:,:3])
 
     # if not valid
     if not scene_instr.is_obj_valid:
@@ -189,7 +197,7 @@ for OBJ_INDEX in OBJ_INDEX_LIST[1:5]:
         print("open_ratio, task_success", open_ratio, task_success)
 
         with open(result_file_path, "a") as f:
-            f.write(f"{OBJ_INDEX},{HANDLE_INDEX},{handle_path_str},{handle_joint_type},{handle_joint},{task_success},{open_ratio},{graps_pos},{grasp_rot}\n")
+            f.write(f"{OBJ_INDEX},{HANDLE_INDEX},{handle_path_str},{handle_joint_type},{handle_joint},{task_success},{open_ratio},{graps_pos},{grasp_rot},{v_desc}|{h_desc}\n")
 
         if SHOW_IMAGE:
             world.render()
@@ -197,6 +205,8 @@ for OBJ_INDEX in OBJ_INDEX_LIST[1:5]:
 
         world.reset()
         controller.xforms.set_world_poses(positions=np.array([[0,0,0]]), orientations = np.array([[1, 0, 0, 0]])) # WXYZ
+        for _ in range(30):
+            world.step()
 
     # close object
     world.scene.remove_object(mobility_obj_name)

@@ -5,11 +5,11 @@ import omni
 
 import os
 import torch
-try:
-    import cv2
-except:
-    omni.kit.pipapi.install("opencv-python")
-    import cv2
+# try:
+#     import cv2
+# except:
+#     omni.kit.pipapi.install("opencv-python")
+#     import cv2
 import numpy as np
 
 
@@ -388,18 +388,18 @@ class SceneInstructor():
         self.model = load_vision_model().to(self.device)
         print("successfully loaded model")
     
-    def predict_bounding_boxes(self, image_path, detection_threshold = 0.5):
+    def predict_bounding_boxes(self, image, detection_threshold = 0.5):
         """
         Predict bounding boxes
+        ::params:
+            image: 255 rgb
         """
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
         self.model = self.model.to(self.device)
 
-        image = cv2.imread(image_path, cv2.IMREAD_COLOR)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
-        image /= 255.0
+        image_arr = image / 255.0
 
-        images = [torch.tensor(image).permute(2,0,1).to(self.device )] # .to("cuda") 
+        images = [torch.tensor(image_arr).to(torch.float).permute(2,0,1).to(self.device )] # .to("cuda") 
         
         outputs = self.model(images)
         # print("outputs", outputs)
