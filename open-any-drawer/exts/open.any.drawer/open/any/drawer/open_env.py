@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(__file__))
 
 import omni
 import pxr
-from pxr import Gf
+from pxr import Gf, Sdf
 
 from omni.isaac.franka import Franka
 from omni.isaac.core.utils.stage import set_stage_up_axis
@@ -37,6 +37,61 @@ class OpenEnv():
         self.prim_paths_expr = prim_paths_expr
         self.backend = backend
         self.device = device
+    
+    def add_camera(self):
+        self.stage = omni.usd.get_context().get_stage()
+         # Create prim
+        omni.kit.commands.execute("CreatePrimWithDefaultXform", prim_type="Camera", prim_path = "/World/Camera")
+        mat = Gf.Matrix4f().SetRotate(Gf.Quatf(0.5, 0.5, -0.5, -0.5)) * Gf.Matrix4f().SetTranslate(Gf.Vec3f(-1, 0, 0.5))
+        omni.kit.commands.execute(
+                "TransformPrimCommand", 
+                path="/World/Camera",
+                new_transform_matrix=mat,
+            )
+        
+        prim = self.stage.GetPrimAtPath("/World/Camera")
+
+        # Setup missing ftheta params
+        prim.CreateAttribute("cameraProjectionType", Sdf.ValueTypeNames.Token)
+        prim.CreateAttribute("fthetaPolyA", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaPolyB", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaPolyC", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaPolyD", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaPolyE", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaCx", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaCy", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaWidth", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaHeight", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaMaxFov", Sdf.ValueTypeNames.Float)
+
+        
+
+        camera_properties = {
+            "focalLength": 24.0,
+            "focusDistance": 400.0,
+            "fStop":0.0,
+            "horizontalAperture":20.955,
+            "horizontalApertureOffset":0.0,
+            "verticalApertureOffset":0.0,
+            "clippingRange":(1.0, 1000000.0),
+            "cameraProjectionType":"pinhole",
+            "fthetaWidth":1936.0,
+            "fthetaHeight":1216.0,
+            "fthetaCx":970.94244,
+            "fthetaCy":600.37482,
+            "fthetaMaxFov":200.0,
+            "fthetaPolyA":0.0,
+            "fthetaPolyB":0.00245,
+            "fthetaPolyC":0.0,
+            "fthetaPolyD":0.0,
+            "fthetaPolyE":0.0,
+        }
+
+        for attribute, attribute_value in camera_properties.items():
+            prim.GetAttribute(attribute).Set(attribute_value)
+
+        # import omni.replicator.core as rep
+        # camera = rep.create.camera(position=(-1, 0, 0.5), rotation=(90, 0, -90))
 
     def add_robot(self):
         print("add robot")
@@ -229,15 +284,13 @@ class OpenEnv():
     # -------------------------------------- Render ------------------------------------------------#
     ##################################################################################################
 
-    def setup_viewport(self, resolution = [256, 256]):
+    def setup_viewport(self, camera_path = "/World/Camera", resolution = [256, 256]):
         viewport = omni.kit.viewport_legacy.get_viewport_interface()
         viewport_handle = viewport.get_instance("Viewport")
         self.viewport_window = viewport.get_viewport_window(viewport_handle)
 
         self.viewport_window.set_texture_resolution(*resolution)
-        self.viewport_window.set_active_camera("/OmniverseKit_Persp")
-
-        from omni.isaac.synthetic_utils import SyntheticDataHelper
+        self.viewport_window.set_active_camera(camera_path) # /OmniverseKit_Persp
 
         self.sd_helper = SyntheticDataHelper()
         self.sd_helper.initialize(sensor_names=["rgb",'depthLinear'], viewport=self.viewport_window)

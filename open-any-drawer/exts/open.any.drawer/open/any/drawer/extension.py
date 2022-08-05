@@ -46,7 +46,9 @@ class MyExtension(omni.ext.IExt):
                     self.object_scale_ui.model.set_value(0.1)
                     ui.Button("Add Object", clicked_fn=self.add_object)
 
-                ui.Button("Add Ground", clicked_fn=self.add_ground)
+                with ui.HStack(height = 20):
+                    ui.Button("Add Ground", clicked_fn=self.add_ground)
+                    ui.Button("Add Camera", clicked_fn=self.add_camera)
 
                 with ui.HStack(height = 20):
                     ui.Button("Add hand from copying", clicked_fn= self.debug)
@@ -68,6 +70,11 @@ class MyExtension(omni.ext.IExt):
         from utils import add_ground_plane
 
         add_ground_plane("/World/Game")
+
+    def add_camera(self):
+        self.env.add_camera()
+        self.env.setup_viewport()
+
 
     def add_object(self):
         object_id = self.object_id_ui.model.get_value_as_int()
