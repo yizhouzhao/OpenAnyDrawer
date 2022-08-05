@@ -151,3 +151,27 @@ class HandEnv():
             self.robots.set_joint_position_targets(u)
         
         print("Not Done rotation, position", finger_pos, finger_rot)
+
+    def calculate_grasp_location_from_pred_box(self, box, verticle = True, x_offset = 0.1):
+        """
+        Calculate the grasp location for the handle
+        """
+
+        # assert len(bboxes_list) == self.num_envs, "more than one handle!"
+
+        # get center and min x axis
+        min_x = 0.618
+        handle_y = 0.5 * (box[0] + box[2])
+        handle_z = 0.5 * (box[1] + box[3])
+        
+        if verticle:
+            grasp_list = [[min_x - x_offset, handle_y, handle_z - 0.12]] 
+        else:
+            grasp_list = [[min_x - x_offset, handle_y + 0.12, handle_z]] 
+ 
+        graps_pos = np.array(grasp_list, dtype=np.float32)
+        
+        base_rotation = [0.38268, 0, 0, 0.92388] if verticle else [0.3036, 0.23296, -0.56242, 0.73296]
+        grasp_rot = np.array([base_rotation], dtype=np.float32)# XYZW
+
+        return graps_pos, grasp_rot

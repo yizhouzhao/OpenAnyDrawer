@@ -1,7 +1,18 @@
 # instructions as language
-import os
+
 import carb
 import omni
+
+import os
+import torch
+try:
+    import cv2
+except:
+    omni.kit.pipapi.install("opencv-python")
+    import cv2
+import numpy as np
+
+
 from pxr import UsdPhysics, Gf, UsdGeom
 
 from task.utils import *
@@ -52,6 +63,10 @@ class SceneInstructor():
         # constant
         self.scale = 0.1 # object scale
         self.is_obj_valid = True # valid object scene
+
+        # pred
+        self.pred_boxes = None
+        self.is_pred_valid = True # Prediction valid
 
     ####################################################################################
     ############################ analysis ###############################################
@@ -217,7 +232,6 @@ class SceneInstructor():
                 v_centers.append(center_z)
             if not is_h_center_list:
                 h_centers.append(center_y)
-
         v_centers = sorted(v_centers)
         h_centers = sorted(h_centers)
         
@@ -353,9 +367,9 @@ class SceneInstructor():
             render_product = rep.create.render_product(camera, (256, 256))
 
              # Initialize and attach writer
-            writer = rep.WriterRegistry.get("BasicWriter")
-            writer.initialize( output_dir=self.output_path, rgb=True, bounding_box_2d_tight=True)
-            writer.attach([render_product])
+            self.writer = rep.WriterRegistry.get("BasicWriter")
+            self.writer.initialize( output_dir=self.output_path, rgb=True, bounding_box_2d_tight=True)
+            self.writer.attach([render_product])
 
             with rep.trigger.on_frame(num_frames=1):
                 pass
@@ -365,3 +379,145 @@ class SceneInstructor():
             # rep.orchestrator.preview()
             # omni.kit.commands.execute("DeletePrims", paths=["/World/Game"])
 
+    def load_model(self):
+        """
+        Load deep leanring model
+        """
+        from exp.model import load_vision_model
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
+        self.model = load_vision_model().to(self.device)
+        print("successfully loaded model")
+    
+    def predict_bounding_boxes(self, image_path, detection_threshold = 0.5):
+        """
+        Predict bounding boxes
+        """
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
+        self.model = self.model.to(self.device)
+
+        image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
+        image /= 255.0
+
+        images = [torch.tensor(image).permute(2,0,1).to(self.device )] # .to("cuda") 
+        
+        outputs = self.model(images)
+        # print("outputs", outputs)
+        boxes = outputs[0]['boxes'].data.cpu().numpy()
+        scores = outputs[0]['scores'].data.cpu().numpy()
+
+        # sort from max to min
+        inds = scores.argsort()[::-1]
+        boxes = boxes[inds]
+
+        # if no boxes!
+        if len(boxes) == 0:
+            self.is_pred_valid = False
+            return
+
+
+        select_boxes = boxes[scores >= detection_threshold].astype(np.int32)
+
+        # if no boxes?
+        if len(select_boxes) == 0:
+            select_boxes = boxes
+        
+        # get world box positions
+        self.pred_boxes= [self.get_bbox_world_position(box) for box in select_boxes]
+
+    def get_bbox_world_position(self, box, 
+           resolution = 256, D = -293, camera_pos = [-1, 0, 0.5], handle_x = 0.61857):
+        """
+        Calculate the grasp location for the handle
+
+        box: [x_min, y_min, x_max, y_max] 2D boudning box in camera
+        resolution: camera resolution
+        D: depth of field
+        camera_pos: camera_position
+        handle_x: object offset
+
+        """
+        w_min = box[0] - resolution / 2
+        w_max = box[2] - resolution / 2
+        h_min = box[1] - resolution / 2
+        h_max = box[3] - resolution / 2
+
+        y_max = (handle_x - camera_pos[0]) * w_min / D + camera_pos[1]
+        y_min = (handle_x - camera_pos[0]) * w_max / D + camera_pos[1]
+
+        z_max = (handle_x - camera_pos[0]) * h_min / D + camera_pos[2]
+        z_min = (handle_x - camera_pos[0]) * h_max / D + camera_pos[2]
+
+
+        return [y_min, z_min, y_max, z_max]
+
+    def get_box_from_desc(self, v_desc, h_desc):
+        """
+        Get box from description
+        """
+
+        # if no description, get bbox of the highest score
+        if v_desc  == "" and h_desc == "":
+            return self.pred_boxes[0]
+
+        # if just one box
+        if len(self.pred_boxes) == 1:
+            return self.pred_boxes[0]
+        
+        v_boxes = sorted(self.pred_boxes, key = lambda box: 0.5 * (box[1] +  box[3]))
+        h_boxes = sorted(self.pred_boxes, key = lambda box: 0.5 * (box[0] +  box[2]))
+        # only vertical relation
+        if h_desc == "":
+            
+            if v_desc == "top":
+                return v_boxes[-1]
+            elif v_desc == "second top" or v_desc == "middle":
+                return v_boxes[-2]
+            if v_desc == "bottom":
+                return v_boxes[0]
+            elif v_desc == "second bottom" or v_desc == "middle":
+                return v_boxes[1]
+
+        # only horizontal relation
+        elif v_desc == "":
+            
+            if h_desc == "left":
+                return h_boxes[-1]
+            elif h_desc == "second left" or h_desc == "middle":
+                return h_boxes[-2]
+  
+
+            if h_desc == "right":
+                return h_boxes[0]
+            elif h_desc == "second right" or h_desc == "middle":
+                return h_boxes[1]
+
+            
+        else: # have both description
+            if v_desc == "bottom" and h_desc == "left":
+                if v_boxes[0][0] > v_boxes[1][0]:
+                    return v_boxes[0]
+                else:
+                    return v_boxes[1]
+            elif v_desc == "bottom" and h_desc == "right":
+                if v_boxes[0][0] > v_boxes[1][0]:
+                    return v_boxes[1]
+                else:
+                    return v_boxes[0]
+            elif v_desc == "top" and h_desc == "left":
+                if v_boxes[-1][0] > v_boxes[-2][0]:
+                    return v_boxes[-1]
+                else:
+                    return v_boxes[-2]
+            elif v_desc == "top" and h_desc == "right":
+                if v_boxes[-1][0] > v_boxes[-2][0]:
+                    return v_boxes[-2]
+                else:
+                    return v_boxes[-1]
+            
+            # TODO: unhandled situation
+            else:
+                return self.pred_boxes[0] 
+
+
+    

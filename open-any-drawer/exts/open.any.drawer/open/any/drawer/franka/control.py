@@ -227,7 +227,7 @@ class FrankaControl():
     
 
     def calculate_grasp_location_from_bbox(self, box, 
-           resolution = 256, D = -193, camera_pos = [-1, 0, 0.5], handle_x = 0.61857):
+           resolution = 256, D = -293, camera_pos = [-1, 0, 0.5], handle_x = 0.61857):
         """
         Calculate the grasp location for the handle
 

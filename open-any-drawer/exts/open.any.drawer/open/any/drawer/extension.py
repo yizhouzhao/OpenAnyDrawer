@@ -822,7 +822,7 @@ class MyExtension(omni.ext.IExt):
         from .task.instructor import SceneInstructor
         import omni.replicator.core as rep
 
-        object_id = self.object_id_ui.model.set_value(3)
+        # object_id = self.object_id_ui.model.set_value(4)
         object_id = self.object_id_ui.model.get_value_as_int()
         object_scale = self.object_scale_ui.model.get_value_as_float()
         self.env.add_object(object_id, scale = object_scale)
@@ -834,7 +834,7 @@ class MyExtension(omni.ext.IExt):
         print("scene_instr.is_obj_valid: ", self.scene_instr.is_obj_valid)
         if self.scene_instr.is_obj_valid:
             self.scene_instr.add_semantic_to_handle()
-            self.scene_instr.output_path = f"/home/yizhou/Research/temp0/{object_id}"
+            self.scene_instr.output_path = f"/home/yizhou/Research/temp0/"
             self.scene_instr.export_data()
         
         
@@ -862,5 +862,28 @@ class MyExtension(omni.ext.IExt):
 
     def debug_load_model(self):
         print("load_model")
-        from exp.model import load_model
-        model = load_model()
+        from task.instructor import SceneInstructor
+
+        self.scene_instr = SceneInstructor()
+        self.scene_instr.analysis()
+        self.scene_instr.build_handle_desc_ui()
+        
+        print("scene_instr.is_obj_valid: ", self.scene_instr.is_obj_valid)
+        if self.scene_instr.is_obj_valid:
+            # print("valid_handle_list",  self.scene_instr.valid_handle_list)
+            self.scene_instr.load_model()
+            self.scene_instr.predict_bounding_boxes(image_path="/home/yizhou/Research/temp0/rgb_0.png")
+            print("pred bboxes", self.scene_instr.pred_boxes)
+
+            handle_list = list(self.scene_instr.valid_handle_list.keys())
+            for HANDLE_INDEX in range(len(handle_list)):
+                handle_path_str = handle_list[HANDLE_INDEX]
+                v_desc = self.scene_instr.valid_handle_list[handle_path_str]["vertical_description"]
+                h_desc = self.scene_instr.valid_handle_list[handle_path_str]["horizontal_description"]
+                
+                print("handle_path_str", handle_path_str, "v desc: ", v_desc, "h desc:", h_desc)
+                the_box = self.scene_instr.get_box_from_desc(v_desc, h_desc)
+                print("the_box:", the_box)
+
+
+            del self.scene_instr.model
