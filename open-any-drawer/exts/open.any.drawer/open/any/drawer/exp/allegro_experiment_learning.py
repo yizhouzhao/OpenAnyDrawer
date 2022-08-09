@@ -75,7 +75,7 @@ from exp.model import load_vision_model
 model = load_vision_model(model_path = MODEL_PATH, model_name = "fasterrcnn_resnet50_fpn")
 
 # iterate object index
-for OBJ_INDEX in OBJ_INDEX_LIST:
+for OBJ_INDEX in OBJ_INDEX_LIST[OBJ_INDEX_LIST.index("50"):]:
     OBJ_INDEX = int(OBJ_INDEX)
 
     # wrong index
@@ -114,6 +114,12 @@ for OBJ_INDEX in OBJ_INDEX_LIST:
     if not scene_instr.is_pred_valid:
         with open(result_file_path, "a") as f:
             f.write(f"{OBJ_INDEX}, invalid prediction\n")
+        
+        world.scene.remove_object(mobility_obj_name)
+        world.reset()
+        controller.xforms.set_world_poses(positions=np.array([[0,0,0]]), orientations = np.array([[1, 0, 0, 0]])) # WXYZ
+        for _ in range(30):
+            world.step()
 
         continue
 

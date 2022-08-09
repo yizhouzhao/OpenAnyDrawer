@@ -54,6 +54,7 @@ class MyExtension(omni.ext.IExt):
                     ui.Button("Add hand from copying", clicked_fn= self.debug)
                     ui.Button("Add hand from helper", clicked_fn= self.debug2)
                     ui.Button("Rig D6", clicked_fn= self.debug_rig_d6)
+                    ui.Button("Add drivers to joint", clicked_fn = self._add_driver_to_revolve_joint) 
 
                 with ui.HStack(height = 20):
                     ui.Button("Test instructor", clicked_fn= self.debug_instructor)
@@ -526,6 +527,20 @@ class MyExtension(omni.ext.IExt):
             driveAPI.CreateTargetPositionAttr(0.0)
             driveAPI.CreateDampingAttr(self._d6RotationalDamping)
             driveAPI.CreateStiffnessAttr(self._d6RotationalSpring)
+        
+        print("add driver")
+
+    def _add_driver_to_revolve_joint(self):
+        stage = omni.usd.get_context().get_stage()
+        joint_prim_list =  [ item for item in list(stage.TraverseAll()) if item.GetTypeName() == 'PhysicsRevoluteJoint'] # 
+        for joint in joint_prim_list:
+            # if not UsdPhysics.DriveAPI.Get(stage, joint.GetPath()):
+            driveAPI = UsdPhysics.DriveAPI.Apply(joint, "angular")
+            driveAPI.CreateTypeAttr("force")
+            # driveAPI.CreateMaxForceAttr(self._drive_max_force)
+            driveAPI.CreateTargetPositionAttr(0.0)
+            driveAPI.CreateDampingAttr(1e6)
+            driveAPI.CreateStiffnessAttr(1e8)
 
     ########################### soft body #################################################
 
@@ -755,7 +770,9 @@ class MyExtension(omni.ext.IExt):
 
     def debug_rig_d6(self):
         self._stage = omni.usd.get_context().get_stage()
-        self._damping_stiffness = 1e5
+        self._damping = 1e4
+        self._stiffness = 2e5
+
         # create anchor:
         self._anchorXform = UsdGeom.Xform.Define(
             self._stage, Sdf.Path("/World/AnchorXform") # allegro/
@@ -777,7 +794,7 @@ class MyExtension(omni.ext.IExt):
         )
 
         
-        self._articulation_root = self._stage.GetPrimAtPath("/World/allegro/allegro_mount")  # "/World/Hand/Bones/l_carpal_mid"
+        self._articulation_root = self._stage.GetPrimAtPath("/World/shadow_hand/robot0_hand_mount")  # "/World/Hand/Bones/l_carpal_mid" # "/World/allegro/allegro_mount"
         baseLocalToWorld = UsdGeom.Xformable(self._articulation_root).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
         jointPosition = baseLocalToWorld.GetInverse().Transform(xformLocalToWorldTrans)
         jointPose = Gf.Quatf(baseLocalToWorld.GetInverse().RemoveScaleShear().ExtractRotationQuat())
@@ -800,16 +817,16 @@ class MyExtension(omni.ext.IExt):
             driveAPI.CreateTypeAttr("force")
             # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
-            driveAPI.CreateDampingAttr(self._damping_stiffness)
-            driveAPI.CreateStiffnessAttr(self._damping_stiffness)
+            driveAPI.CreateDampingAttr(self._damping)
+            driveAPI.CreateStiffnessAttr(self._stiffness)
 
         for rotDof in ["rotX", "rotY", "rotZ"]:
             driveAPI = UsdPhysics.DriveAPI.Apply(rootJointPrim, rotDof)
             driveAPI.CreateTypeAttr("force")
             # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
-            driveAPI.CreateDampingAttr(self._damping_stiffness)
-            driveAPI.CreateStiffnessAttr(self._damping_stiffness)
+            driveAPI.CreateDampingAttr(self._damping)
+            driveAPI.CreateStiffnessAttr(self._stiffness)
 
     def debug_instructor(self):
         print("debug instru")
