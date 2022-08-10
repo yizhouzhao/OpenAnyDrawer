@@ -518,7 +518,7 @@ class HandHelper():
             # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
             driveAPI.CreateDampingAttr(1e4)
-            driveAPI.CreateStiffnessAttr(1e4)
+            driveAPI.CreateStiffnessAttr(1e5)
 
         for rotDof in ["rotX", "rotY", "rotZ"]:
             driveAPI = UsdPhysics.DriveAPI.Apply(rootJointPrim, rotDof)
@@ -526,7 +526,7 @@ class HandHelper():
             # driveAPI.CreateMaxForceAttr(self._drive_max_force)
             driveAPI.CreateTargetPositionAttr(0.0)
             driveAPI.CreateDampingAttr(1e4)
-            driveAPI.CreateStiffnessAttr(1e4)
+            driveAPI.CreateStiffnessAttr(1e5)
 
             # limitAPI = UsdPhysics.LimitAPI.Apply(rootJointPrim, rotDof)
             # limitAPI.CreateLowAttr(1.0)
