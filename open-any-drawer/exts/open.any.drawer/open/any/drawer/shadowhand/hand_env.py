@@ -147,7 +147,7 @@ class ShadowHandEnv():
         
         print("Not Done rotation, position", finger_pos, finger_rot)
 
-    def calculate_grasp_location_from_pred_box(self, box, verticle = True, x_offset = 0.1):
+    def calculate_grasp_location_from_pred_box(self, box, verticle = True, x_offset = 0.04):
         """
         Calculate the grasp location for the handle
         """
@@ -160,13 +160,13 @@ class ShadowHandEnv():
         handle_z = 0.5 * (box[1] + box[3])
         
         if verticle:
-            grasp_list = [[min_x - x_offset, handle_y, handle_z - 0.12]] 
+            grasp_list = [[min_x - x_offset, handle_y, handle_z - 0.42]] 
         else:
-            grasp_list = [[min_x - x_offset, handle_y + 0.12, handle_z]] 
+            grasp_list = [[min_x - x_offset, handle_y + 0.42, handle_z]] 
  
         graps_pos = np.array(grasp_list, dtype=np.float32)
         
-        base_rotation = [0.38268, 0, 0, 0.92388] if verticle else [0.3036, 0.23296, -0.56242, 0.73296]
+        base_rotation =  [-0.5, 0.5, -0.5, 0.5] if verticle else [0, 0.70711, 0, 0.70711]
         grasp_rot = np.array([base_rotation], dtype=np.float32)# XYZW
 
         return graps_pos, grasp_rot
