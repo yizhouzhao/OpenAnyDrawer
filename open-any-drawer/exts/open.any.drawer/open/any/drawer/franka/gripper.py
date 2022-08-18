@@ -145,7 +145,7 @@ class GripperHandEnv():
         
         print("Not Done rotation, position", finger_pos, finger_rot)
 
-    def calculate_grasp_location_from_pred_box(self, box, verticle = True, x_offset = 0.01):
+    def calculate_grasp_location_from_pred_box(self, box, verticle = True, x_offset = 0.04):
         """
         Calculate the grasp location for the handle
         """
@@ -158,13 +158,13 @@ class GripperHandEnv():
         handle_z = 0.5 * (box[1] + box[3])
         
         if verticle:
-            grasp_list = [[min_x - x_offset, handle_y, handle_z - 0.02]] 
+            grasp_list = [[min_x - x_offset, handle_y + 0.02, handle_z - 0.00]] 
         else:
-            grasp_list = [[min_x - x_offset, handle_y + 0.02, handle_z]] 
+            grasp_list = [[min_x - x_offset, handle_y + 0.01, handle_z + 0.02]] 
  
         graps_pos = np.array(grasp_list, dtype=np.float32)
         
-        base_rotation = [0.5, -0.5, 0.5, 0.5] if verticle else [-0.70711, 0.70711, 0, 0]
+        base_rotation = [-0.2706, -0.65328, 0.2706, 0.65328] if verticle else [0.2706, -0.65328, -0.2706, 0.65328]
         grasp_rot = np.array([base_rotation], dtype=np.float32)# XYZW
 
         return graps_pos, grasp_rot

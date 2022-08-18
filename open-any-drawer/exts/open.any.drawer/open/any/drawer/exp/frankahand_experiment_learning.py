@@ -12,7 +12,7 @@ from PIL import Image
 from exp.params import OBJ_INDEX_LIST
 
 SUCESS_PERCENTAGE = 20
-result_file_path = "/home/yizhou/Research/Data/humanhand_exp_learning.txt"
+result_file_path = "/home/yizhou/Research/Data/frankahand_exp_learning.txt"
 MODEL_PATH = "/home/yizhou/Research/temp0/fasterrcnn_resnet50_fpn.pth"
 SHOW_IMAGE = False
 
@@ -24,7 +24,7 @@ user = getpass.getuser()
 from omni.isaac.kit import SimulationApp
 
 # "/home/yizhou/Research/OpenAnyDrawer/scene0.usd" # 
-usd_path = f"omniverse://localhost/Users/{user}/scene3.usd"
+usd_path = f"omniverse://localhost/Users/{user}/scene4.usd"
 simulation_app = SimulationApp({"headless": True, "open_usd": usd_path,  "livesync_usd": usd_path}) 
 
 # world
@@ -45,7 +45,7 @@ if replicator_prim:
 
 # custom import
 from open_env import OpenEnv
-from hand.hand_env import HumanHandEnv
+from franka.gripper import GripperHandEnv
 from task.checker import TaskChecker
 from task.instructor import SceneInstructor
 from omni.isaac.core.prims.xform_prim import XFormPrim
@@ -55,7 +55,7 @@ env.add_camera()
 env.setup_viewport()
 
 # env = HandEnv("/World/Hand/Bones/l_carpal_mid", "/World/Hand*/Bones/l_thumbSkeleton_grp/l_distalThumb_mid")
-controller = HumanHandEnv("/World/Hand/Bones/l_carpal_mid", "/World/AnchorXform")
+controller = GripperHandEnv("/World/Franka/panda_link8", "/World/AnchorXform")
 
 # init
 world.reset()
@@ -63,7 +63,7 @@ controller.start()
 world.scene.add(controller.robots)
 
 # hide robot
-hand_prim = world.scene.stage.GetPrimAtPath("/World/Hand")
+hand_prim = world.scene.stage.GetPrimAtPath("/World/Franka")
 hand_prim.GetAttribute('visibility').Set('invisible')
 
 if SHOW_IMAGE:
@@ -75,9 +75,8 @@ from exp.model import load_vision_model
 model = load_vision_model(model_path = MODEL_PATH, model_name = "fasterrcnn_resnet50_fpn")
 
 # iterate object index
-for OBJ_INDEX in OBJ_INDEX_LIST:
+for OBJ_INDEX in OBJ_INDEX_LIST[:1]:
     OBJ_INDEX = int(OBJ_INDEX)
-
 
     env.add_object(OBJ_INDEX, scale = 0.1)
 
@@ -95,6 +94,8 @@ for OBJ_INDEX in OBJ_INDEX_LIST:
     # scene_instr.output_path = "/home/yizhou/Research/temp0/"
     # scene_instr.export_data()
     # omni.kit.commands.execute("DeletePrims", paths=["/Replicator"])
+    world.render()
+    world.render()
     world.render()
     image_array =env.get_image(return_array=True)
 
@@ -156,55 +157,34 @@ for OBJ_INDEX in OBJ_INDEX_LIST:
         
         graps_pos, grasp_rot = controller.calculate_grasp_location_from_pred_box(the_box, verticle= handle_direction == "horizontal")
         print("graps_pos, grasp_rot ", graps_pos, grasp_rot )
+        
         # move close to handle
         graps_pos[...,0] -= 0.1
         controller.xforms.set_world_poses(graps_pos, grasp_rot)
-        for _ in range(500):
-            world.step(render=SHOW_IMAGE)         
+        for _ in range(200):
+            world.step(render=False)         
 
-        print("move to handle")
         # move to handle
         graps_pos[...,0] += 0.1
         controller.xforms.set_world_poses(graps_pos, grasp_rot)
         for _ in range(100):
-            world.step(render=SHOW_IMAGE)        
+            world.step(render=False)        
 
-        print("close finger")
-       # close finger
-        for i in range(100):
-            i  = i / 5
-            dof_pos = np.array([
-                [ i * 0.03,  i * 0.04, 
-                i * 0.01,  -i * 0.04,  
-                i * 0.005, -i * 0.04, 
-                -i * 0.02, -i * 0.04,  
-                -i * 0.01, -i * 0.04,  
-                -i * 0.02,  -i * 0.03,  -i * 0.03,  -i * 0.03,  -i * 0.03,
-                -i * 0.02,  -i * 0.03,  -i * 0.03,  -i * 0.03,  -i * 0.03, 
-                ],
-            ])
-
-            # pos = np.random.randn(2,25)
-            controller.robots.set_joint_position_targets(dof_pos) # 
-            world.step(render=SHOW_IMAGE)
+        # close
+        pos = np.array([[0.0, 0.0]])
+                    
+        for _ in range(100):
+            pos -= 0.01
+            controller.robots.set_joint_position_targets(pos)
+            world.step(render=False)
         
-       # pull out
-        for i in range(200):
+        # pull out
+        for i in range(300):
             graps_pos[...,0] -= 0.001
-        #   env.robots.set_world_poses(graps_pos, grasp_rot)
             controller.xforms.set_world_poses(graps_pos, grasp_rot)
-            controller.robots.set_joint_position_targets(dof_pos)
-
-            world.step(render=SHOW_IMAGE)
-
-        dof_pos /= 1.5
-        # pull out furthur
-        for i in range(100):
-            graps_pos[...,0] -= 0.001
-        #   env.robots.set_world_poses(graps_pos, grasp_rot)
-            controller.xforms.set_world_poses(graps_pos, grasp_rot)
-            controller.robots.set_joint_position_targets(dof_pos)
-            world.step(render=SHOW_IMAGE)
+            controller.robots.set_joint_position_targets(pos)
+            pos += 0.015
+            world.step(render=False)
 
         # check task sucess
         open_ratio = task_checker.joint_checker.compute_percentage()

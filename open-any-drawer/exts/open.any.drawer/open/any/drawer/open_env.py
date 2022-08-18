@@ -43,6 +43,11 @@ class OpenEnv():
         
         # Create prim
         prim = self.stage.GetPrimAtPath("/World/Camera")
+
+        # delete if exist
+        if prim:
+            omni.kit.commands.execute("DeletePrims", paths=["/World/Camera"])
+
         if not prim:
             omni.kit.commands.execute("CreatePrimWithDefaultXform", prim_type="Camera", prim_path = "/World/Camera")
             prim = self.stage.GetPrimAtPath("/World/Camera")
@@ -303,6 +308,7 @@ class OpenEnv():
     def get_image(self, return_array = False, world = None):
         
         if world:
+            world.step(render=True)
             world.render()
 
         gt = self.sd_helper.get_groundtruth(
