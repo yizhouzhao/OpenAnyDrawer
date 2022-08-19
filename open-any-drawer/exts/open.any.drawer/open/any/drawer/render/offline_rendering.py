@@ -28,16 +28,14 @@ world = World()
 from omni.isaac.core.prims.xform_prim import XFormPrim
 from open_env import OpenEnv
 from task.instructor import SceneInstructor
-from render.param import NECLEUS_MATERIALS
+from exp.params import OBJ_INDEX_LIST, ALL_SEMANTIC_TYPES
 
 env = OpenEnv()
-material_paths = [e.replace("http://localhost:8080/omniverse:", "omniverse:") for e in \
-    NECLEUS_MATERIALS["Wood"] + NECLEUS_MATERIALS["Metals"]]
-
 
 # we will be using the replicator library
 import omni.replicator.core as rep
-from pxr import Sdf
+
+
 
 # This allows us to run replicator, which will update the random
 # parameters and save out the data for as many frames as listed
@@ -54,8 +52,9 @@ def run_orchestrator():
 
     rep.BackendDispatch.wait_until_done()
 
-
-for i in range(0, 1):
+for i in OBJ_INDEX_LIST[3:]:
+    print("rendering object id:", i)
+    i = int(i)
     env.add_object(i, scale = 0.1)
     game_obj = XFormPrim("/World/Game")
     game_obj_name = game_obj.name
@@ -79,8 +78,8 @@ for i in range(0, 1):
 
             light_group = rep.create.group(["/World/defaultLight"])
 
-            shapes = rep.get.prims(semantics=[('class', 'handle')])
-
+            shapes = rep.get.prims(semantics=[('class', i) for i in ALL_SEMANTIC_TYPES])
+            mats = rep.create.material_omnipbr(diffuse=rep.distribution.uniform((0,0,0), (1,1,1)), count=20)
 
             with rep.trigger.on_frame(num_frames=CONFIG["num_frames"]):
                 with camera:
@@ -89,16 +88,16 @@ for i in range(0, 1):
                         rotation=(90, 0, -90),
                     )
 
-                # Randomize light colors
-                with light_group:
-                    rep.modify.attribute("color", rep.distribution.uniform((0.1, 0.1, 0.1), (1.0, 1.0, 1.0)))
-                    rep.modify.pose(
-                        position=rep.distribution.uniform((0, -45, 90), (0, 0, 90))
-                    )
+                # # Randomize light colors
+                # with light_group:
+                #     rep.modify.attribute("color", rep.distribution.uniform((0.1, 0.1, 0.1), (1.0, 1.0, 1.0)))
+                #     rep.modify.pose(
+                #         position=rep.distribution.uniform((0, -45, 90), (0, 0, 90))
+                #     )
                 
                 # randomize 
                 with shapes:
-                    rep.randomizer.texture(textures=material_paths)
+                    rep.randomizer.materials(mats)
     
             run_orchestrator()
 

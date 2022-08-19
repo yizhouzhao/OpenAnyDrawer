@@ -31,18 +31,27 @@ def collate_fn(batch):
     
 class HandleDataset(Dataset):
 
-    def __init__(self, image_dir, num_frames = 5, transforms=None):
+    def __init__(self, image_dir, num_frames = 5, is_train = True, transforms=None):
         super().__init__()
 
         self.image_dir = image_dir
         self.num_frames = num_frames # randomized frames in rendering
         self.transforms = transforms
+        self.is_train = is_train
 
         self.get_img_ids()
 
     def get_img_ids(self):
         self.image_ids = []
         for image_id in tqdm(os.listdir(self.image_dir)):
+
+            if self.is_train:
+                if int(image_id) > 150:
+                    continue
+            else: # test
+                if int(image_id) <= 150:
+                    continue
+                
             for i in range(self.num_frames):
                 boxes_np = np.load(f'{self.image_dir}/{image_id}/bounding_box_2d_tight_{i}.npy')
                 

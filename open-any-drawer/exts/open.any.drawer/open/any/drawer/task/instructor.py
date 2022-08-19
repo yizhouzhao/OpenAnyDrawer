@@ -262,9 +262,9 @@ class SceneInstructor():
                 if abs(handle_center[2] - v_centers[0]) < self.spatial_desc_tolerance:
                     self.valid_handle_list[handle_path_str]["vertical_description"] = "bottom"
                 elif abs(handle_center[2] - v_centers[1]) < self.spatial_desc_tolerance:
-                    self.valid_handle_list[handle_path_str]["vertical_description"] = "second bottom"
+                    self.valid_handle_list[handle_path_str]["vertical_description"] = "second-bottom"
                 elif abs(handle_center[2] - v_centers[2]) < self.spatial_desc_tolerance:
-                    self.valid_handle_list[handle_path_str]["vertical_description"] = "second top"
+                    self.valid_handle_list[handle_path_str]["vertical_description"] = "second-top"
                 else:
                      self.valid_handle_list[handle_path_str]["vertical_description"] = "top"
         else:
@@ -298,9 +298,9 @@ class SceneInstructor():
                 if abs(handle_center[1] - h_centers[0]) < self.spatial_desc_tolerance:
                     self.valid_handle_list[handle_path_str]["horizontal_description"] = "right"
                 elif abs(handle_center[1] - h_centers[1]) < self.spatial_desc_tolerance:
-                    self.valid_handle_list[handle_path_str]["horizontal_description"] = "second right"
+                    self.valid_handle_list[handle_path_str]["horizontal_description"] = "second-right"
                 elif abs(handle_center[1] - h_centers[2]) < self.spatial_desc_tolerance:
-                    self.valid_handle_list[handle_path_str]["horizontal_description"] = "second left"
+                    self.valid_handle_list[handle_path_str]["horizontal_description"] = "second-left"
                 else:
                      self.valid_handle_list[handle_path_str]["horizontal_description"] = "left"
         else:
@@ -356,7 +356,14 @@ class SceneInstructor():
     def add_semantic_to_handle(self):
         for handle_path_str in self.valid_handle_list:
             prim = self.stage.GetPrimAtPath(handle_path_str)
-            add_update_semantics(prim, "handle")
+            h_desc = self.valid_handle_list[handle_path_str]["horizontal_description"]
+            v_desc = self.valid_handle_list[handle_path_str]["vertical_description"]
+            
+            cabinet_type = self.valid_handle_list[handle_path_str]["cabinet_type"]
+            # add_update_semantics(prim, "handle")
+
+            add_update_semantics(prim, semantic_label = f"{v_desc}_{h_desc}_{cabinet_type}")
+            
 
     def export_data(self):
         """
