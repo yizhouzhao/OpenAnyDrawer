@@ -155,7 +155,7 @@ class GripperHandEnv():
         # get center and min x axis
         min_x = 0.618
         handle_y = 0.5 * (box[0] + box[2])
-        handle_z = 0.5 * (box[1] + box[3])
+        handle_z = 0.5 * (box[1] + box[3]) 
         
         if verticle:
             grasp_list = [[min_x - x_offset, handle_y + 0.02, handle_z - 0.00]] 
