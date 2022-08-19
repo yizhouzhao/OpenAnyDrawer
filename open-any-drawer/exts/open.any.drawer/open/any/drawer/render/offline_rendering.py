@@ -28,12 +28,16 @@ world = World()
 from omni.isaac.core.prims.xform_prim import XFormPrim
 from open_env import OpenEnv
 from task.instructor import SceneInstructor
+from render.param import NECLEUS_MATERIALS
 
 env = OpenEnv()
+material_paths = [e.replace("http://localhost:8080/omniverse:", "omniverse:") for e in \
+    NECLEUS_MATERIALS["Wood"] + NECLEUS_MATERIALS["Metals"]]
 
 
 # we will be using the replicator library
 import omni.replicator.core as rep
+from pxr import Sdf
 
 # This allows us to run replicator, which will update the random
 # parameters and save out the data for as many frames as listed
@@ -51,13 +55,15 @@ def run_orchestrator():
     rep.BackendDispatch.wait_until_done()
 
 
-for i in range(0, 200):
+for i in range(0, 1):
     env.add_object(i, scale = 0.1)
     game_obj = XFormPrim("/World/Game")
     game_obj_name = game_obj.name
     world.scene.add(game_obj)
 
     scene_instr = SceneInstructor()
+    scene_instr.output_path = "/home/yizhou/Research/temp1"
+
     scene_instr.analysis()
     scene_instr.add_semantic_to_handle()
 
@@ -71,16 +77,32 @@ for i in range(0, 200):
             writer.initialize( output_dir=os.path.join(scene_instr.output_path, f"{i}"), rgb=True, bounding_box_2d_tight=True)
             writer.attach([render_product])
 
+            light_group = rep.create.group(["/World/defaultLight"])
+
+            shapes = rep.get.prims(semantics=[('class', 'handle')])
+
+
             with rep.trigger.on_frame(num_frames=CONFIG["num_frames"]):
                 with camera:
                     rep.modify.pose(
                         position=rep.distribution.uniform((-1.5, -0.2, 0.5), (-1, 0.2, 0.5)),
                         rotation=(90, 0, -90),
                     )
-        
+
+                # Randomize light colors
+                with light_group:
+                    rep.modify.attribute("color", rep.distribution.uniform((0.1, 0.1, 0.1), (1.0, 1.0, 1.0)))
+                    rep.modify.pose(
+                        position=rep.distribution.uniform((0, -45, 90), (0, 0, 90))
+                    )
+                
+                # randomize 
+                with shapes:
+                    rep.randomizer.texture(textures=material_paths)
     
             run_orchestrator()
 
     world.scene.remove_object(game_obj_name)
+    kit.update()
 
 kit.close()

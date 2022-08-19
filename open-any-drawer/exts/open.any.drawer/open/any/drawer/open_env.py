@@ -48,57 +48,55 @@ class OpenEnv():
         if prim:
             omni.kit.commands.execute("DeletePrims", paths=["/World/Camera"])
 
-        if not prim:
-            omni.kit.commands.execute("CreatePrimWithDefaultXform", prim_type="Camera", prim_path = "/World/Camera")
-            prim = self.stage.GetPrimAtPath("/World/Camera")
 
-            mat = Gf.Matrix4f().SetRotate(Gf.Quatf(0.5, 0.5, -0.5, -0.5)) * Gf.Matrix4f().SetTranslate(Gf.Vec3f(-1, 0, 0.5))
-            omni.kit.commands.execute(
-                    "TransformPrimCommand", 
-                    path="/World/Camera",
-                    new_transform_matrix=mat,
-                )
-            
-            
+        omni.kit.commands.execute("CreatePrimWithDefaultXform", prim_type="Camera", prim_path = "/World/Camera")
+        prim = self.stage.GetPrimAtPath("/World/Camera")
 
-            # Setup missing ftheta params
-            prim.CreateAttribute("cameraProjectionType", Sdf.ValueTypeNames.Token)
-            prim.CreateAttribute("fthetaPolyA", Sdf.ValueTypeNames.Float)
-            prim.CreateAttribute("fthetaPolyB", Sdf.ValueTypeNames.Float)
-            prim.CreateAttribute("fthetaPolyC", Sdf.ValueTypeNames.Float)
-            prim.CreateAttribute("fthetaPolyD", Sdf.ValueTypeNames.Float)
-            prim.CreateAttribute("fthetaPolyE", Sdf.ValueTypeNames.Float)
-            prim.CreateAttribute("fthetaCx", Sdf.ValueTypeNames.Float)
-            prim.CreateAttribute("fthetaCy", Sdf.ValueTypeNames.Float)
-            prim.CreateAttribute("fthetaWidth", Sdf.ValueTypeNames.Float)
-            prim.CreateAttribute("fthetaHeight", Sdf.ValueTypeNames.Float)
-            prim.CreateAttribute("fthetaMaxFov", Sdf.ValueTypeNames.Float)
+        mat = Gf.Matrix4f().SetRotate(Gf.Quatf(0.5, 0.5, -0.5, -0.5)) * Gf.Matrix4f().SetTranslate(Gf.Vec3f(-1, 0, 0.5))
+        omni.kit.commands.execute(
+                "TransformPrimCommand", 
+                path="/World/Camera",
+                new_transform_matrix=mat,
+            )
+        
+        # Setup missing ftheta params
+        prim.CreateAttribute("cameraProjectionType", Sdf.ValueTypeNames.Token)
+        prim.CreateAttribute("fthetaPolyA", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaPolyB", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaPolyC", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaPolyD", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaPolyE", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaCx", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaCy", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaWidth", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaHeight", Sdf.ValueTypeNames.Float)
+        prim.CreateAttribute("fthetaMaxFov", Sdf.ValueTypeNames.Float)
 
-            
+        
 
-            camera_properties = {
-                "focalLength": 24.0,
-                "focusDistance": 400.0,
-                "fStop":0.0,
-                "horizontalAperture":20.955,
-                "horizontalApertureOffset":0.0,
-                "verticalApertureOffset":0.0,
-                "clippingRange":(1.0, 1000000.0),
-                "cameraProjectionType":"pinhole",
-                "fthetaWidth":1936.0,
-                "fthetaHeight":1216.0,
-                "fthetaCx":970.94244,
-                "fthetaCy":600.37482,
-                "fthetaMaxFov":200.0,
-                "fthetaPolyA":0.0,
-                "fthetaPolyB":0.00245,
-                "fthetaPolyC":0.0,
-                "fthetaPolyD":0.0,
-                "fthetaPolyE":0.0,
-            }
+        camera_properties = {
+            "focalLength": 24.0,
+            "focusDistance": 400.0,
+            "fStop":0.0,
+            "horizontalAperture":20.955,
+            "horizontalApertureOffset":0.0,
+            "verticalApertureOffset":0.0,
+            "clippingRange":(1.0, 1000000.0),
+            "cameraProjectionType":"pinhole",
+            "fthetaWidth":1936.0,
+            "fthetaHeight":1216.0,
+            "fthetaCx":970.94244,
+            "fthetaCy":600.37482,
+            "fthetaMaxFov":200.0,
+            "fthetaPolyA":0.0,
+            "fthetaPolyB":0.00245,
+            "fthetaPolyC":0.0,
+            "fthetaPolyD":0.0,
+            "fthetaPolyE":0.0,
+        }
 
-            for attribute, attribute_value in camera_properties.items():
-                prim.GetAttribute(attribute).Set(attribute_value)
+        for attribute, attribute_value in camera_properties.items():
+            prim.GetAttribute(attribute).Set(attribute_value)
 
         # import omni.replicator.core as rep
         # camera = rep.create.camera(position=(-1, 0, 0.5), rotation=(90, 0, -90))
