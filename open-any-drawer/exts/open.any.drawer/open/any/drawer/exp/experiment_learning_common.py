@@ -8,9 +8,10 @@ ROBOT_NAME = "allegro"
 grasp_profile = GRASP_PROFILES[ROBOT_NAME]
 
 SUCESS_PERCENTAGE = 20
+print("SUCESS_PERCENTAGE: ", SUCESS_PERCENTAGE)
 result_file_path = "/home/yizhou/Research/Data/allegro_exp_learning823.txt"
 MODEL_PATH = "/home/yizhou/Research/temp0/fasterrcnn_resnet50_fpn823.pth"
-SHOW_IMAGE = False
+SHOW_IMAGE = True
 
 
 import getpass
@@ -18,7 +19,7 @@ user = getpass.getuser()
 
 usd_path = grasp_profile["usd_path"]
 
-from omni.isaac.kit import SimulationApp
+from omni.isaac.kit import SimulationApp    
 
 
 simulation_app = SimulationApp({"headless": True, "open_usd": usd_path,  "livesync_usd": usd_path}) 
@@ -43,6 +44,7 @@ if replicator_prim:
 from open_env import OpenEnv
 from hand_env import HandEnv
 from hand_common import HandBase
+from render.utils import prim_random_color, LOOKS_PATH
 
 from task.checker import TaskChecker
 from task.instructor import SceneInstructor
@@ -91,6 +93,23 @@ for OBJ_INDEX in OBJ_INDEX_LIST[:1]:
 
     scene_instr = SceneInstructor()
     scene_instr.analysis()
+
+    # randomize color
+
+    # reset look in scene
+    mat_look_prim = world.scene.stage.GetPrimAtPath(LOOKS_PATH)
+    if mat_look_prim:
+        omni.kit.commands.execute("DeletePrims", paths=[LOOKS_PATH])
+        
+    handle_num = len(list(scene_instr.valid_handle_list.keys()))
+
+    for HANDLE_INDEX in range(handle_num):
+        handle_path_str = list(scene_instr.valid_handle_list.keys())[HANDLE_INDEX]
+        prim_random_color(handle_path_str)
+
+    if SHOW_IMAGE:
+        world.render()
+        env.get_image().show()
 
     # export data and load model
     # scene_instr.output_path = "/home/yizhou/Research/temp0/"
