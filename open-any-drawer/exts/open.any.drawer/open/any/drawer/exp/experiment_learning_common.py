@@ -1,8 +1,7 @@
 import numpy as np
 from PIL import Image
 
-from exp.params import OBJ_INDEX_LIST
-from exp.profile import GRASP_PROFILES
+from exp.params import OBJ_INDEX_LIST, GRASP_PROFILES
 
 ROBOT_NAME = "shadowhand" # "allegro"
 grasp_profile = GRASP_PROFILES[ROBOT_NAME]
@@ -87,32 +86,35 @@ for OBJ_INDEX in OBJ_INDEX_LIST[:10]:
     mobility_obj = XFormPrim("/World/Game/mobility")
     mobility_obj_name = mobility_obj.name
 
-    world.scene.add(mobility_obj)
-    world.reset()
-    world.render()
-
-    scene_instr = SceneInstructor()
-    scene_instr.analysis()
-
     # randomize color
 
     # reset look in scene
     mat_look_prim = world.scene.stage.GetPrimAtPath(LOOKS_PATH)
     if mat_look_prim:
         omni.kit.commands.execute("DeletePrims", paths=[LOOKS_PATH])
-        
+
+    world.step(render = False)
+
+    scene_instr = SceneInstructor()
+    scene_instr.analysis()
+
     handle_num = len(list(scene_instr.valid_handle_list.keys()))
 
     for HANDLE_INDEX in range(handle_num):
         handle_path_str = list(scene_instr.valid_handle_list.keys())[HANDLE_INDEX]
         prim_random_color(handle_path_str)
+        
+    world.scene.add(mobility_obj)
+    world.reset()
 
-    # export data and load model
-    # scene_instr.output_path = "/home/yizhou/Research/temp0/"
-    # scene_instr.export_data()
-    # omni.kit.commands.execute("DeletePrims", paths=["/Replicator"])
     world.render()
+    world.render()
+    
     image_array =env.get_image(return_array=True)
+
+    if SHOW_IMAGE:
+        world.render()
+        env.get_image().show()
 
     scene_instr.model = model
     scene_instr.predict_bounding_boxes(image_array[:,:,:3])
@@ -229,7 +231,7 @@ for OBJ_INDEX in OBJ_INDEX_LIST[:10]:
                 dof_pos[22] += 0.01
                 
                 controller.robots.set_joint_position_targets(dof_pos) # 
-                world.step(render=True)     
+                world.step(render=SHOW_IMAGE)     
 
         print("pull out")
         # pull out
@@ -251,23 +253,15 @@ for OBJ_INDEX in OBJ_INDEX_LIST[:10]:
 
         elif ROBOT_NAME == "shadowhand": 
             # pull out
-            for i in range(200):
+            for i in range(300):
                 graps_pos[...,0] -= 0.001
             #   env.robots.set_world_poses(graps_pos, grasp_rot)
                 controller.xforms.set_world_poses(graps_pos, grasp_rot)
                 controller.robots.set_joint_position_targets(dof_pos)
+                dof_pos *= 0.997
+                # print(dof_pos)
 
-                world.step(render=True)
-
-            dof_pos /= 1.5
-            # pull out futher
-            for i in range(100):
-                graps_pos[...,0] -= 0.002
-            #   env.robots.set_world_poses(graps_pos, grasp_rot)
-                controller.xforms.set_world_poses(graps_pos, grasp_rot)
-                controller.robots.set_joint_position_targets(dof_pos)
-                world.step(render=True)   
-        
+                world.step(render=SHOW_IMAGE)
         
 
         # check task sucess
