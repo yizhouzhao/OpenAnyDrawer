@@ -5,6 +5,11 @@ windows running guide:
 C:/Users/zhaoy/AppData/Local/ov/pkg/isaac_sim-2022.1.0/python.bat
 E:\researches\OpenAnyDrawer\open-any-drawer\exts\open.any.drawer\open\any\drawer
 
+result_file_path = "F:\\allegro_exp_learning823.txt"
+MODEL_PATH = "F:\\fasterrcnn_resnet50_fpn823.pth"
+usd_path = "F:\\scene1.usd"
+
+env = OpenEnv(load_nucleus=False)
 
 
 open_env.py line 134-139 change to load locally

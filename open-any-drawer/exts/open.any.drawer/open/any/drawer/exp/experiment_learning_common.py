@@ -4,12 +4,12 @@ from PIL import Image
 from exp.params import OBJ_INDEX_LIST
 from exp.profile import GRASP_PROFILES
 
-ROBOT_NAME = "allegro"
+ROBOT_NAME = "shadowhand" # "allegro"
 grasp_profile = GRASP_PROFILES[ROBOT_NAME]
 
 SUCESS_PERCENTAGE = 20
 print("SUCESS_PERCENTAGE: ", SUCESS_PERCENTAGE)
-result_file_path = "/home/yizhou/Research/Data/allegro_exp_learning823.txt"
+result_file_path = "/home/yizhou/Research/Data/shadowhand_exp_learning823.txt"
 MODEL_PATH = "/home/yizhou/Research/temp0/fasterrcnn_resnet50_fpn823.pth"
 SHOW_IMAGE = False
 
@@ -78,7 +78,7 @@ from exp.model import load_vision_model
 model = load_vision_model(model_path = MODEL_PATH, model_name = "fasterrcnn_resnet50_fpn")
 
 # iterate object index
-for OBJ_INDEX in OBJ_INDEX_LIST[:1]:
+for OBJ_INDEX in OBJ_INDEX_LIST[:10]:
     OBJ_INDEX = int(OBJ_INDEX)
 
 
@@ -182,24 +182,93 @@ for OBJ_INDEX in OBJ_INDEX_LIST[:1]:
         graps_pos[...,0] += 0.1
         controller.xforms.set_world_poses(graps_pos, grasp_rot)
         for _ in range(100):
-            world.step(render=SHOW_IMAGE)        
+            world.step(render=SHOW_IMAGE)     
 
-        print("close finger")
+                
         # close finger
+        print("close finger")
         finger_pos = grasp_profile["finger_pos"]
 
-        for i in range(120):
-            controller.robots.set_joint_position_targets(finger_pos * i / 120) # 
-            world.step(render=SHOW_IMAGE)                   
+        if ROBOT_NAME == "allegro":   
+            for i in range(120):
+                controller.robots.set_joint_position_targets(finger_pos * i / 120) # 
+                world.step(render=SHOW_IMAGE)       
+
+        elif ROBOT_NAME == "frankahand":      
+            for i in range(100):
+                finger_pos -= 0.01
+                controller.robots.set_joint_position_targets(finger_pos) # 
+                world.step(render=SHOW_IMAGE) 
+
+        elif ROBOT_NAME == "shadowhand": 
+            dof_pos = finger_pos
+            for i in range(60):
+                # thumb
+                dof_pos[6] += 0.01
+                dof_pos[11] += 0.02
+                # dof_pos[16] += 0.01
+                dof_pos[21] += -0.01
+                
+                
+                dof_pos[7] += 0.01
+                dof_pos[8] += 0.01
+                dof_pos[9] += 0.01
+                # dof_pos[14] += 0.01
+                
+                dof_pos[12] += 0.01
+                dof_pos[13] += 0.01
+                dof_pos[14] += 0.01
+                
+                dof_pos[17] += 0.01
+                dof_pos[18] += 0.01
+                dof_pos[19] += 0.01
+                
+                # pinky
+                dof_pos[15] += 0.01
+                dof_pos[20] += 0.01
+                dof_pos[22] += 0.01
+                
+                controller.robots.set_joint_position_targets(dof_pos) # 
+                world.step(render=True)     
 
         print("pull out")
         # pull out
-        for i in range(300):
-            graps_pos[...,0] -= 0.001
-        #   env.robots.set_world_poses(graps_pos, grasp_rot)
-            controller.xforms.set_world_poses(graps_pos, grasp_rot)
-            controller.robots.set_joint_position_targets(finger_pos)
-            world.step(render=SHOW_IMAGE)
+        if ROBOT_NAME == "allegro": 
+            for i in range(300):
+                graps_pos[...,0] -= 0.001
+            #   env.robots.set_world_poses(graps_pos, grasp_rot)
+                controller.xforms.set_world_poses(graps_pos, grasp_rot)
+                controller.robots.set_joint_position_targets(finger_pos)
+                world.step(render=SHOW_IMAGE)
+
+        elif ROBOT_NAME == "frankahand": 
+            for i in range(300):
+                graps_pos[...,0] -= 0.001
+                controller.xforms.set_world_poses(graps_pos, grasp_rot)
+                controller.robots.set_joint_position_targets(finger_pos)
+                finger_pos += 0.015
+                world.step(render=SHOW_IMAGE)
+
+        elif ROBOT_NAME == "shadowhand": 
+            # pull out
+            for i in range(200):
+                graps_pos[...,0] -= 0.001
+            #   env.robots.set_world_poses(graps_pos, grasp_rot)
+                controller.xforms.set_world_poses(graps_pos, grasp_rot)
+                controller.robots.set_joint_position_targets(dof_pos)
+
+                world.step(render=True)
+
+            dof_pos /= 1.5
+            # pull out futher
+            for i in range(100):
+                graps_pos[...,0] -= 0.002
+            #   env.robots.set_world_poses(graps_pos, grasp_rot)
+                controller.xforms.set_world_poses(graps_pos, grasp_rot)
+                controller.robots.set_joint_position_targets(dof_pos)
+                world.step(render=True)   
+        
+        
 
         # check task sucess
         open_ratio = task_checker.joint_checker.compute_percentage()

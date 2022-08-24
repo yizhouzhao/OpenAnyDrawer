@@ -526,5 +526,5 @@ class SceneInstructor():
             else:
                 return self.pred_boxes[0] 
 
-
+        return self.pred_boxes[0]
     
