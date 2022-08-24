@@ -26,17 +26,19 @@ from utils import get_bounding_box
 ROOT = str(Path(__file__).parent.joinpath("../../../../../../").resolve())
 
 class OpenEnv():
-    
     def __init__(self,  
         prim_paths_expr="",
         xform_paths_expr="",
         backend = "numpy",
-        device = None) -> None: 
+        device = None,
+        load_nucleus = True,
+        ) -> None: 
         
         self.xform_paths_expr = xform_paths_expr
         self.prim_paths_expr = prim_paths_expr
         self.backend = backend
         self.device = device
+        self.load_nucleus = load_nucleus
     
     def add_camera(self):
         self.stage = omni.usd.get_context().get_stage()
@@ -134,12 +136,12 @@ class OpenEnv():
             prim = self.stage.DefinePrim(mobility_prim_path)
         
         # loading asset from Omniverse Nucleus or local
-        try:
+        if self.load_nucleus:
             asset_root = "omniverse://localhost/Users/yizhou"
             r = omni.client.list(os.path.join(asset_root, "Asset/Sapien/StorageFurniture/"))
             print("loading asset from omni nucleus")
             object_ids = sorted([e.relative_path for e in r[1]])
-        except:
+        else:
             asset_root = ROOT
             object_ids = sorted(os.listdir(os.path.join(asset_root, "Asset/Sapien/StorageFurniture/")))
         

@@ -9,10 +9,10 @@ E:\researches\OpenAnyDrawer\open-any-drawer\exts\open.any.drawer\open\any\drawer
 
 open_env.py line 134-139 change to load locally
 experiment.py line 
-    result_file_path = "F:\\shadowhand_exp.txt"
+    result_file_path = "F:\\shadowhand_exp823.txt"
     SHOW_IMAGE = False
     usd_path = "F:\\scene2.usd"
-
+    MODEL_PATH = "F:\\fasterrcnn_resnet50_fpn823.pth"
 
 linux running guide:
 
