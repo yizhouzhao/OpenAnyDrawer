@@ -11,7 +11,7 @@ SUCESS_PERCENTAGE = 20
 print("SUCESS_PERCENTAGE: ", SUCESS_PERCENTAGE)
 result_file_path = "/home/yizhou/Research/Data/allegro_exp_learning823.txt"
 MODEL_PATH = "/home/yizhou/Research/temp0/fasterrcnn_resnet50_fpn823.pth"
-SHOW_IMAGE = True
+SHOW_IMAGE = False
 
 
 import getpass
@@ -106,10 +106,6 @@ for OBJ_INDEX in OBJ_INDEX_LIST[:1]:
     for HANDLE_INDEX in range(handle_num):
         handle_path_str = list(scene_instr.valid_handle_list.keys())[HANDLE_INDEX]
         prim_random_color(handle_path_str)
-
-    if SHOW_IMAGE:
-        world.render()
-        env.get_image().show()
 
     # export data and load model
     # scene_instr.output_path = "/home/yizhou/Research/temp0/"
