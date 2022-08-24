@@ -3,6 +3,9 @@ from PIL import Image
 
 from exp.params import OBJ_INDEX_LIST, GRASP_PROFILES
 
+import getpass
+user = getpass.getuser()
+
 ROBOT_NAME = "shadowhand" # "allegro"
 grasp_profile = GRASP_PROFILES[ROBOT_NAME]
 
@@ -11,14 +14,10 @@ print("SUCESS_PERCENTAGE: ", SUCESS_PERCENTAGE)
 result_file_path = "/home/yizhou/Research/Data/shadowhand_exp_cliport824.txt"
 MODEL_PATH = "/home/yizhou/Research/temp0/custom_cliport824.pth"
 clip_text_feature_path = "/home/yizhou/Research/OpenAnyDrawer/learning/text2clip_feature.json"
+load_nucleus = False # nucleus loading
+usd_path = "omniverse://localhost/Users/yizhou/scene2.usd" #grasp_profile["usd_path"]
 
 SHOW_IMAGE = True
-
-
-import getpass
-user = getpass.getuser()
-
-usd_path = "omniverse://localhost/Users/yizhou/scene2.usd" #grasp_profile["usd_path"]
 
 from omni.isaac.kit import SimulationApp    
 
@@ -29,6 +28,12 @@ simulation_app = SimulationApp({"headless": True, "open_usd": usd_path,  "livesy
 import omni
 from omni.isaac.core import World
 world = World()
+
+# import 
+try:
+    import transformers
+except:
+    omni.kit.pipapi.install("transformers")
 
 # reset scene
 mobility_prim = world.scene.stage.GetPrimAtPath("/World/Game/mobility")
@@ -51,7 +56,7 @@ from task.checker import TaskChecker
 from task.instructor import SceneInstructor
 from omni.isaac.core.prims.xform_prim import XFormPrim
 
-env = OpenEnv()
+env = OpenEnv(load_nucleus=load_nucleus)
 env.add_camera()
 env.setup_viewport()
 
