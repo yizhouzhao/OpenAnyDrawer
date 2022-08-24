@@ -108,9 +108,6 @@ class HandBase():
         min_x = 0.618
         handle_y = 0.5 * (box[0] + box[2])
         handle_z = 0.5 * (box[1] + box[3])
-
-        if center:
-            handle_y, handle_z = center
         
         pos_offset = self.grasp_profile["position_offset"]
 

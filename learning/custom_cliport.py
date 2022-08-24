@@ -61,15 +61,16 @@ class Up(nn.Module):
         return self.conv(x)
 
 class CustomCliport(nn.Module):
-    def __init__(self, pred_mode = False, clip_text_feature_path = "text2clip_feature.pickle") -> None:
+    def __init__(self, clip_text_feature_path = "/home/yizhou/Research/OpenAnyDrawer/learning/text2clip_feature.json", 
+            device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')) -> None:
         """
         Prediction mode: initialize resnet 
         """
         super().__init__()
 
-        self.pred_mode = pred_mode
         self.batchnorm = True
         self.clip_text_feature_path = clip_text_feature_path
+        self.device = device
 
         self.proj_input_dim = 512 
         self.lang_proj1 = nn.Linear(self.proj_input_dim, 256)
@@ -119,25 +120,25 @@ class CustomCliport(nn.Module):
 
 
         # in prediction
-        if self.pred_mode:
-            # load vision model
-            from transformers import AutoFeatureExtractor, ResNetModel
-            self.feature_extractor = AutoFeatureExtractor.from_pretrained("microsoft/resnet-18")
-            self.resnet_model = ResNetModel.from_pretrained("microsoft/resnet-18")
+    def set_prediction_mode(self):
+        # load vision model
+        from transformers import AutoFeatureExtractor, ResNetModel
+        self.feature_extractor = AutoFeatureExtractor.from_pretrained("microsoft/resnet-18")
+        self.resnet_model = ResNetModel.from_pretrained("microsoft/resnet-18").to(self.device)
 
-            # load language feature
-            import pickle
-            self.text2clip_feature = pickle.load(open(self.clip_text_feature_path,'rb'))
+        # load language feature
+        import json
+        self.text2clip_feature = json.load(open(self.clip_text_feature_path,'r', encoding='utf-8'))
 
     def pred_box_pos_and_dir(self, image, text):
         """
         Prediction box center position and direction
         """
         # image features
-        inputs = self.feature_extractor(image, return_tensors="pt").to("cuda")
+        inputs = self.feature_extractor(image, return_tensors="pt").to(self.device)
         with torch.no_grad():
             image_features = self.resnet_model(**inputs).last_hidden_state # [1, 512, 7, 7]
-            text_feautures = self.text2clip_feature[text].unsqueeze(0) # [1, 512]
+            text_feautures = torch.tensor(self.text2clip_feature[text]).float().unsqueeze(0).to(self.device) # [1, 512]
 
             pred_y = self.forward(image_features, text_feautures)
 

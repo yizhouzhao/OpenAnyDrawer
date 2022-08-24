@@ -38,8 +38,8 @@ GRASP_PROFILES = {
         "articulation_root": "/World/shadow_hand*/robot0_hand_mount",
         "offset":{
             "position_offset":{
-                "vertical": [0.04,0,0.42],
-                "horizontal": [0.04,-0.42,0],
+                "vertical": [0.04,0,0.38],
+                "horizontal": [0.04,-0.38,0],
             },
             "rotation":{
                 "vertical": [-0.5, 0.5, -0.5, 0.5], # XYZW
