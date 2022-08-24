@@ -73,34 +73,34 @@ class CustomCliport(nn.Module):
         self.device = device
 
         self.proj_input_dim = 512 
-        self.lang_proj1 = nn.Linear(self.proj_input_dim, 256)
-        self.lang_proj2 = nn.Linear(self.proj_input_dim, 128)
-        self.lang_proj3 = nn.Linear(self.proj_input_dim, 64)
+        self.lang_proj1 = nn.Linear(self.proj_input_dim, 512)
+        self.lang_proj2 = nn.Linear(self.proj_input_dim, 256)
+        self.lang_proj3 = nn.Linear(self.proj_input_dim, 128)
 
         self.lang_fuser1 = FusionMult(512)
         self.lang_fuser2 = FusionMult(256)
-        self.lang_fuser3 = FusionMult(64)
+        self.lang_fuser3 = FusionMult(128)
 
         self.up1 = nn.Sequential(
             nn.Upsample(scale_factor= 2, mode='bilinear', align_corners=True),
-            DoubleConv(512, 256)
+            DoubleConv(512, 512, 512)
         )
 
         self.up2 = nn.Sequential(
             nn.Upsample(scale_factor= 2, mode='bilinear', align_corners=True),
-            DoubleConv(256, 128)
+            DoubleConv(512, 256, 512)
         )
 
         self.up3 = nn.Sequential(
             nn.Upsample(scale_factor= 2, mode='bilinear', align_corners=True),
-            DoubleConv(128, 64)
+            DoubleConv(256, 128, 256)
         )
 
-        # self.layer1 = nn.Sequential(
-        #     ConvBlock(128, [64, 64, 64], kernel_size=3, str ide=1, batchnorm=self.batchnorm),
-        #     IdentityBlock(64, [64, 64, 64], kernel_size=3, stride=1, batchnorm=self.batchnorm),
-        #     nn.UpsamplingBilinear2d(scale_factor=2),
-        # )
+        self.layer1 = nn.Sequential(
+            ConvBlock(128, [64, 64, 64], kernel_size=3, stride=1, batchnorm=self.batchnorm),
+            IdentityBlock(64, [64, 64, 64], kernel_size=3, stride=1, batchnorm=self.batchnorm),
+            nn.UpsamplingBilinear2d(scale_factor=2),
+        )
 
         self.layer2 = nn.Sequential(
             ConvBlock(64, [32, 32, 32], kernel_size=3, stride=1, batchnorm=self.batchnorm),
@@ -179,7 +179,8 @@ class CustomCliport(nn.Module):
 
         x = self.up3(x)
         x = self.lang_fuser3(x, l, x2_proj = self.lang_proj3)
-
+        
+        x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.conv2(x)
