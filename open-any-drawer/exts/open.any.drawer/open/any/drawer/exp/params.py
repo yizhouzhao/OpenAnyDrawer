@@ -51,6 +51,25 @@ GRASP_PROFILES = {
         ] * 24),
     },
 
+    "skeletonhand": {
+        "usd_path": "omniverse://localhost/Users/yizhou/scene3.usd",
+        "robot_path": "/World/Hand",
+        "articulation_root": "/World/Hand/Bones/l_carpal_mid",
+        "offset":{
+            "position_offset":{
+                "vertical": [0.03,0.025,0.02],
+                "horizontal": [0.03,0.02,0.025],
+            },
+            "rotation":{
+                "vertical": [0.5, -0.5, 0.5, 0.5], # XYZW
+                "horizontal": [0, -0.70711, 0.70711, 0],
+            },
+        },
+        "finger_pos": np.array([
+            0.0
+        ] * 24),
+    },
+
     "frankahand": {
         "usd_path": "omniverse://localhost/Users/yizhou/scene4.usd",
         "robot_path": "/World/Franka",

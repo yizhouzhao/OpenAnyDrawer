@@ -102,12 +102,12 @@ class MyExtension(omni.ext.IExt):
 
     def debug_rig_d6(self):
         self._stage = omni.usd.get_context().get_stage()
-        self._damping = 1e4
-        self._stiffness = 2e5
+        self._damping = 5 # 1e4
+        self._stiffness = 5e1 # 2e5
 
         # create anchor:
         self._anchorXform = UsdGeom.Xform.Define(
-            self._stage, Sdf.Path("/World/AnchorXform") # allegro/
+            self._stage, Sdf.Path("/World/AnchorXform") 
         )
         # these are global coords because world is the xform's parent
         xformLocalToWorldTrans = Gf.Vec3f(0)
@@ -126,7 +126,8 @@ class MyExtension(omni.ext.IExt):
         )
 
         # "/World/Hand/Bones/l_carpal_mid" # "/World/allegro/allegro_mount" # "/World/shadow_hand/robot0_hand_mount"
-        self._articulation_root = self._stage.GetPrimAtPath("/World/Franka/panda_link8")  
+        # "/World/Franka/panda_link8"
+        self._articulation_root = self._stage.GetPrimAtPath("/World/Hand/Bones/l_carpal_mid")   
         baseLocalToWorld = UsdGeom.Xformable(self._articulation_root).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
         jointPosition = baseLocalToWorld.GetInverse().Transform(xformLocalToWorldTrans)
         jointPose = Gf.Quatf(baseLocalToWorld.GetInverse().RemoveScaleShear().ExtractRotationQuat())

@@ -6,7 +6,7 @@ from exp.params import OBJ_INDEX_LIST, GRASP_PROFILES
 import getpass
 user = getpass.getuser()
 
-ROBOT_NAME = "shadowhand" # "allegro"
+ROBOT_NAME = "skeletonhand" # "shadowhand" # "allegro"
 grasp_profile = GRASP_PROFILES[ROBOT_NAME]
 
 SUCESS_PERCENTAGE = 20
