@@ -11,11 +11,12 @@ grasp_profile = GRASP_PROFILES[ROBOT_NAME]
 
 SUCESS_PERCENTAGE = 20
 print("SUCESS_PERCENTAGE: ", SUCESS_PERCENTAGE)
-result_file_path = "/home/yizhou/Research/Data/shadowhand_exp_cliport824.txt"
+result_file_path = f"/home/yizhou/Research/Data/{ROBOT_NAME}_exp_cliport824.txt"
 MODEL_PATH = "/home/yizhou/Research/temp0/custom_cliport824.pth"
 clip_text_feature_path = "/home/yizhou/Research/OpenAnyDrawer/learning/text2clip_feature.json"
-load_nucleus = False # nucleus loading
-usd_path = "omniverse://localhost/Users/yizhou/scene2.usd" #grasp_profile["usd_path"]
+load_nucleus = True # nucleus loading
+
+usd_path = "omniverse://localhost/Users/yizhou/scene3.usd" #grasp_profile["usd_path"]
 
 SHOW_IMAGE = True
 
@@ -88,7 +89,7 @@ model = load_vision_model(
     )
 
 # iterate object index
-for OBJ_INDEX in OBJ_INDEX_LIST[1:2]:
+for OBJ_INDEX in OBJ_INDEX_LIST[:2]:
     OBJ_INDEX = int(OBJ_INDEX)
 
 
@@ -243,6 +244,25 @@ for OBJ_INDEX in OBJ_INDEX_LIST[1:2]:
                 controller.robots.set_joint_position_targets(dof_pos) # 
                 world.step(render=True)     
 
+        elif ROBOT_NAME == "skeletonhand": 
+            # close finger
+            for i in range(120):
+                i  = i / 4
+                dof_pos = np.array([
+                    [ i * 0.03,  i * 0.04, 
+                    i * 0.01,  -i * 0.04,  
+                    i * 0.005, -i * 0.04, 
+                    -i * 0.02, -i * 0.04,  
+                    -i * 0.01, -i * 0.04,  
+                    -i * 0.02,  -i * 0.03,  -i * 0.03,  -i * 0.03,  -i * 0.03,
+                    -i * 0.02,  -i * 0.03,  -i * 0.03,  -i * 0.03,  -i * 0.03, 
+                    ],
+                ])
+
+                # pos = np.random.randn(2,25)
+                controller.robots.set_joint_position_targets(dof_pos) # 
+                world.step(render=SHOW_IMAGE)
+
         print("pull out")
         # pull out
         if ROBOT_NAME == "allegro": 
@@ -273,6 +293,25 @@ for OBJ_INDEX in OBJ_INDEX_LIST[1:2]:
 
                 world.step(render=SHOW_IMAGE)
         
+        elif ROBOT_NAME == "skeletonhand": 
+            # pull out
+            for i in range(200):
+                graps_pos[...,0] -= 0.001
+            #   env.robots.set_world_poses(graps_pos, grasp_rot)
+                controller.xforms.set_world_poses(graps_pos, grasp_rot)
+                controller.robots.set_joint_position_targets(dof_pos)
+
+                world.step(render=SHOW_IMAGE)
+
+            dof_pos /= 1.5
+            # pull out furthur
+            for i in range(100):
+                graps_pos[...,0] -= 0.001
+            #   env.robots.set_world_poses(graps_pos, grasp_rot)
+                controller.xforms.set_world_poses(graps_pos, grasp_rot)
+                controller.robots.set_joint_position_targets(dof_pos)
+                world.step(render=SHOW_IMAGE)
+                
 
         # check task sucess
         open_ratio = task_checker.joint_checker.compute_percentage()

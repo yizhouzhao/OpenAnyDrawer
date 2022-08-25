@@ -58,7 +58,7 @@ GRASP_PROFILES = {
         "offset":{
             "position_offset":{
                 "vertical": [0.03,0.025,0.02],
-                "horizontal": [0.03,0.02,0.025],
+                "horizontal": [0.03, 0.05,0.025],
             },
             "rotation":{
                 "vertical": [0.5, -0.5, 0.5, 0.5], # XYZW
