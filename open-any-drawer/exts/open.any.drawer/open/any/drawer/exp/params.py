@@ -76,8 +76,8 @@ GRASP_PROFILES = {
         "articulation_root": "/World/Franka/panda_link8",
         "offset":{
             "position_offset":{
-                "vertical": [0.04, -0.02, 0],
-                "horizontal": [0.04,-0.01,-0.02],
+                "vertical": [0.03, -0.02, 0],
+                "horizontal": [0.03, 0,-0.02],
             },
             "rotation":{
                 "vertical": [-0.2706, -0.65328, 0.2706, 0.65328], # XYZW

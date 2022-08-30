@@ -3,7 +3,7 @@ from PIL import Image
 
 from exp.params import OBJ_INDEX_LIST, GRASP_PROFILES
 
-ROBOT_NAME = "skeletonhand" # "shadowhand" # "allegro"
+ROBOT_NAME = "frankahand" #"skeletonhand" # "shadowhand" # "allegro"
 grasp_profile = GRASP_PROFILES[ROBOT_NAME]
 
 SUCESS_PERCENTAGE = 20
@@ -12,7 +12,7 @@ result_file_path = f"/home/yizhou/Research/Data/{ROBOT_NAME}_exp_learning823.txt
 MODEL_PATH = "/home/yizhou/Research/temp0/fasterrcnn_resnet50_fpn823.pth"
 
 load_nucleus = True # nucleus loading
-usd_path = "omniverse://localhost/Users/yizhou/scene3.usd" #grasp_profile["usd_path"]
+usd_path = "omniverse://localhost/Users/yizhou/scene4.usd" #grasp_profile["usd_path"]
 SHOW_IMAGE = True
 
 
@@ -79,7 +79,7 @@ from exp.model import load_vision_model
 model = load_vision_model(model_path = MODEL_PATH, model_name = "fasterrcnn_resnet50_fpn")
 
 # iterate object index
-for OBJ_INDEX in OBJ_INDEX_LIST[:1]:
+for OBJ_INDEX in OBJ_INDEX_LIST[:2]:
     OBJ_INDEX = int(OBJ_INDEX)
 
 
@@ -199,10 +199,11 @@ for OBJ_INDEX in OBJ_INDEX_LIST[:1]:
                 world.step(render=SHOW_IMAGE)       
 
         elif ROBOT_NAME == "frankahand":      
-            for i in range(100):
+            for _ in range(100):
                 finger_pos -= 0.01
-                controller.robots.set_joint_position_targets(finger_pos) # 
-                world.step(render=SHOW_IMAGE) 
+                controller.robots.set_joint_position_targets(finger_pos)
+                pos = np.clip(finger_pos, 0, 4)
+                world.step(render=SHOW_IMAGE)
 
         elif ROBOT_NAME == "shadowhand": 
             dof_pos = finger_pos
@@ -267,9 +268,12 @@ for OBJ_INDEX in OBJ_INDEX_LIST[:1]:
         elif ROBOT_NAME == "frankahand": 
             for i in range(300):
                 graps_pos[...,0] -= 0.001
+                finger_pos += np.sqrt(i) * 1e-4
+                # print(pos)
                 controller.xforms.set_world_poses(graps_pos, grasp_rot)
                 controller.robots.set_joint_position_targets(finger_pos)
-                finger_pos += 0.015
+
+                finger_pos = np.clip(finger_pos, 0, 4)
                 world.step(render=SHOW_IMAGE)
 
         elif ROBOT_NAME == "shadowhand": 
