@@ -79,7 +79,7 @@ from exp.model import load_vision_model
 model = load_vision_model(model_path = MODEL_PATH, model_name = "fasterrcnn_resnet50_fpn")
 
 # iterate object index
-for OBJ_INDEX in OBJ_INDEX_LIST[:2]:
+for OBJ_INDEX in OBJ_INDEX_LIST[4:]:
     OBJ_INDEX = int(OBJ_INDEX)
 
 

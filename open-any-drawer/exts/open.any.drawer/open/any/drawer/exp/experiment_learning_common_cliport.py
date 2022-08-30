@@ -6,7 +6,7 @@ from exp.params import OBJ_INDEX_LIST, GRASP_PROFILES
 import getpass
 user = getpass.getuser()
 
-ROBOT_NAME = "skeletonhand" # "shadowhand" # "allegro"
+ROBOT_NAME = "frankahand" #"skeletonhand" # "shadowhand" # "allegro"
 grasp_profile = GRASP_PROFILES[ROBOT_NAME]
 
 SUCESS_PERCENTAGE = 20
@@ -16,7 +16,7 @@ MODEL_PATH = "/home/yizhou/Research/temp0/custom_cliport824.pth"
 clip_text_feature_path = "/home/yizhou/Research/OpenAnyDrawer/learning/text2clip_feature.json"
 load_nucleus = True # nucleus loading
 
-usd_path = "omniverse://localhost/Users/yizhou/scene3.usd" #grasp_profile["usd_path"]
+usd_path = "omniverse://localhost/Users/yizhou/scene4.usd" #grasp_profile["usd_path"]
 
 SHOW_IMAGE = True
 
@@ -207,10 +207,11 @@ for OBJ_INDEX in OBJ_INDEX_LIST[:2]:
                 world.step(render=SHOW_IMAGE)       
 
         elif ROBOT_NAME == "frankahand":      
-            for i in range(100):
+            for _ in range(100):
                 finger_pos -= 0.01
-                controller.robots.set_joint_position_targets(finger_pos) # 
-                world.step(render=SHOW_IMAGE) 
+                controller.robots.set_joint_position_targets(finger_pos)
+                pos = np.clip(finger_pos, 0, 4)
+                world.step(render=SHOW_IMAGE)
 
         elif ROBOT_NAME == "shadowhand": 
             dof_pos = finger_pos
@@ -276,9 +277,12 @@ for OBJ_INDEX in OBJ_INDEX_LIST[:2]:
         elif ROBOT_NAME == "frankahand": 
             for i in range(300):
                 graps_pos[...,0] -= 0.001
+                finger_pos += np.sqrt(i) * 1e-4
+                # print(pos)
                 controller.xforms.set_world_poses(graps_pos, grasp_rot)
                 controller.robots.set_joint_position_targets(finger_pos)
-                finger_pos += 0.015
+
+                finger_pos = np.clip(finger_pos, 0, 4)
                 world.step(render=SHOW_IMAGE)
 
         elif ROBOT_NAME == "shadowhand": 
