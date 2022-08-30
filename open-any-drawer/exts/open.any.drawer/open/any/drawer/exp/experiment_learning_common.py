@@ -3,20 +3,22 @@ from PIL import Image
 
 from exp.params import OBJ_INDEX_LIST, GRASP_PROFILES
 
-ROBOT_NAME = "shadowhand" # "allegro"
+ROBOT_NAME = "skeletonhand" # "shadowhand" # "allegro"
 grasp_profile = GRASP_PROFILES[ROBOT_NAME]
 
 SUCESS_PERCENTAGE = 20
 print("SUCESS_PERCENTAGE: ", SUCESS_PERCENTAGE)
-result_file_path = "/home/yizhou/Research/Data/shadowhand_exp_learning823.txt"
+result_file_path = f"/home/yizhou/Research/Data/{ROBOT_NAME}_exp_learning823.txt"
 MODEL_PATH = "/home/yizhou/Research/temp0/fasterrcnn_resnet50_fpn823.pth"
-SHOW_IMAGE = False
+
+load_nucleus = True # nucleus loading
+usd_path = "omniverse://localhost/Users/yizhou/scene3.usd" #grasp_profile["usd_path"]
+SHOW_IMAGE = True
 
 
 import getpass
 user = getpass.getuser()
 
-usd_path = grasp_profile["usd_path"]
 
 from omni.isaac.kit import SimulationApp    
 
@@ -49,7 +51,7 @@ from task.checker import TaskChecker
 from task.instructor import SceneInstructor
 from omni.isaac.core.prims.xform_prim import XFormPrim
 
-env = OpenEnv()
+env = OpenEnv(load_nucleus = load_nucleus)
 env.add_camera()
 env.setup_viewport()
 
@@ -77,7 +79,7 @@ from exp.model import load_vision_model
 model = load_vision_model(model_path = MODEL_PATH, model_name = "fasterrcnn_resnet50_fpn")
 
 # iterate object index
-for OBJ_INDEX in OBJ_INDEX_LIST:
+for OBJ_INDEX in OBJ_INDEX_LIST[:1]:
     OBJ_INDEX = int(OBJ_INDEX)
 
 
@@ -231,7 +233,26 @@ for OBJ_INDEX in OBJ_INDEX_LIST:
                 dof_pos[22] += 0.01
                 
                 controller.robots.set_joint_position_targets(dof_pos) # 
-                world.step(render=SHOW_IMAGE)     
+                world.step(render=SHOW_IMAGE)   
+
+        elif ROBOT_NAME == "skeletonhand": 
+            # close finger
+            for i in range(120):
+                i  = i / 4
+                dof_pos = np.array([
+                    [ i * 0.03,  i * 0.04, 
+                    i * 0.01,  -i * 0.04,  
+                    i * 0.005, -i * 0.04, 
+                    -i * 0.02, -i * 0.04,  
+                    -i * 0.01, -i * 0.04,  
+                    -i * 0.02,  -i * 0.03,  -i * 0.03,  -i * 0.03,  -i * 0.03,
+                    -i * 0.02,  -i * 0.03,  -i * 0.03,  -i * 0.03,  -i * 0.03, 
+                    ],
+                ])
+
+                # pos = np.random.randn(2,25)
+                controller.robots.set_joint_position_targets(dof_pos) # 
+                world.step(render=SHOW_IMAGE)  
 
         print("pull out")
         # pull out
@@ -261,6 +282,25 @@ for OBJ_INDEX in OBJ_INDEX_LIST:
                 dof_pos *= 0.997
                 # print(dof_pos)
 
+                world.step(render=SHOW_IMAGE)
+        
+        elif ROBOT_NAME == "skeletonhand": 
+            # pull out
+            for i in range(200):
+                graps_pos[...,0] -= 0.001
+            #   env.robots.set_world_poses(graps_pos, grasp_rot)
+                controller.xforms.set_world_poses(graps_pos, grasp_rot)
+                controller.robots.set_joint_position_targets(dof_pos)
+
+                world.step(render=SHOW_IMAGE)
+
+            dof_pos /= 1.5
+            # pull out furthur
+            for i in range(100):
+                graps_pos[...,0] -= 0.001
+            #   env.robots.set_world_poses(graps_pos, grasp_rot)
+                controller.xforms.set_world_poses(graps_pos, grasp_rot)
+                controller.robots.set_joint_position_targets(dof_pos)
                 world.step(render=SHOW_IMAGE)
         
 
